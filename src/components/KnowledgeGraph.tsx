@@ -248,6 +248,14 @@ export function KnowledgeGraph({ visible, onNodeClick }: KnowledgeGraphProps) {
   const growthTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [hoveredNode, setHoveredNode] = useState<GraphNode | null>(null)
 
+  // Stash the click handler in a ref so initGraph isn't reactive to it.
+  // Without this, every parent re-render (e.g. setSelectedNode after a click)
+  // would tear down and rebuild the entire 3D scene.
+  const onNodeClickRef = useRef(onNodeClick)
+  useEffect(() => {
+    onNodeClickRef.current = onNodeClick
+  }, [onNodeClick])
+
   const initGraph = useCallback(async () => {
     if (!containerRef.current || graphRef.current) return
 
@@ -394,7 +402,7 @@ export function KnowledgeGraph({ visible, onNodeClick }: KnowledgeGraphProps) {
       .linkDirectionalParticleSpeed(linkParticleSpeedFn)
       .linkDirectionalParticleColor(() => VISUAL_CONFIG.particles.color)
       .onNodeClick((node: GraphNode) => {
-        onNodeClick?.(node)
+        onNodeClickRef.current?.(node)
         const dist = node.type === "agent" ? 160 : 100
         graph.cameraPosition(
           {
