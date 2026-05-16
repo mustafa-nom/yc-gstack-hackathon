@@ -51,16 +51,23 @@ content:
 
 image_generation:
   base_prompt: >
-    Soft cozy bedroom corner, afternoon window light, muted warm tones, no people, no text,
-    linen textures, trailing plants, candles, journaling aesthetic, cream and blush palette,
-    photorealistic, high quality
+    Realistic candid lifestyle photography, natural lighting, photorealistic, iPhone photo quality,
+    no text in image, no watermarks, authentic feel — not staged, not AI-aesthetic
   aspect_ratio: "9:16"
+  scene_variety:
+    # Each slide should get a DIFFERENT type of scene
+    - "cozy bedroom interior, warm lamp light, rumpled linen sheets, nightstand with book and candle"
+    - "restaurant table with food, overhead angle, natural window light, marble surface"
+    - "outdoor scenic view, ocean or nature, wide shot, natural sky"
+    - "urban or fashion setting, staircase or hallway, warm interior tones"
+    - "luxury bathroom or spa, marble, soft natural light from above"
 
 text_overlay:
-  font_size_title: 68
-  font_size_body: 44
+  font_size_title: 48        # bold numbered title
+  font_size_body: 36         # paragraph body text
+  font_size_subtitle: 34     # slide 1 subtitle
   text_color: "#FFFFFF"
   text_shadow: true
-  overlay_opacity: 0.50      # 0.0–1.0; controls darkness of the text backdrop
-  overlay_position: "bottom" # "bottom", "top", or "center"
-  padding: 60                # px from edges
+  overlay_opacity: 0.72      # darkness of the rounded box background
+  slide_margin: 44           # px from slide edges to box
+  box_padding: 26            # inner padding inside the box

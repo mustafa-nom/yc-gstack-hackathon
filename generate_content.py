@@ -219,11 +219,12 @@ def build_system_prompt(persona: dict, analysis: Optional[dict] = None) -> str:
             {{
               "slug": "kebab-case-topic-slug",
               "title_slide": "Hook that exactly matches the text style above",
+              "subtitle": "Short supporting line below the title (1 sentence, softer tone)",
               "slides": [
                 {{
-                  "title": "Slide Title",
-                  "body": "One concise line matching the body style above — no em dashes, no commas",
-                  "image_prompt": "Full Gemini image generation prompt built on the IMAGE PROMPT BASE above"
+                  "title": "Slide Title (no number — numbering added automatically)",
+                  "body": "Paragraph-style explanation. 3-5 sentences totalling 50-80 words. Specific and actionable. Each sentence builds on the previous.",
+                  "image_prompt": "Realistic candid lifestyle photography prompt for this slide's background — specific scene, natural lighting, no people unless essential, no text in image, photorealistic iPhone quality"
                 }}
               ],
               "caption": "Long-form TikTok caption with 5 hashtags at the end"
@@ -234,8 +235,10 @@ def build_system_prompt(persona: dict, analysis: Optional[dict] = None) -> str:
         RULES
         - Each topic has exactly {p["content"]["slides_per_carousel"] - 1} slides (title slide is separate)
         - title_slide: match the hook format and register from TEXT STYLE — not a generic working title
-        - slide body: match the body length and casing from TEXT STYLE exactly
-        - image_prompt: start from IMAGE PROMPT BASE, add slide-specific details; no text in images
+        - subtitle: 1 short sentence framing who this is for or why it matters (e.g. "From someone who learned the hard way.")
+        - slide title: concise, no number prefix
+        - slide body: paragraph-style, 3-5 sentences, ~50-80 words — specific, actionable, builds naturally
+        - image_prompt: VARIED scenes per slide — bedroom, food, outdoor, urban, interior, etc. Each slide a different setting. Photorealistic, candid, natural lighting. No text. No staged AI aesthetic.
         - caption: strong opening line, SEO keywords, exactly 5 hashtags, no emojis
         - Vary topic angles — no two topics should share the same opener template
     """).strip()
