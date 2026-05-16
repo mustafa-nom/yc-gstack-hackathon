@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Loader2, ArrowRight, Zap, Download } from "lucide-react";
+import type { ScanResult, StrategyData, SlideData } from "@/types";
 
 const STEP_ORDER = [
   "welcome",
@@ -15,46 +16,10 @@ const STEP_ORDER = [
 
 type Step = (typeof STEP_ORDER)[number];
 
-const AGENT_STEPS = [
-  "Initializing agent pipeline…",
-  "Crawling product website…",
-  "Analyzing brand positioning…",
-  "Fetching trending videos via Apify…",
-  "Extracting hook patterns from high-performers…",
-  "Identifying slide structure templates…",
-  "Scoring CTA effectiveness across samples…",
-  "Analyzing reference TikTok content…",
-  "Building audience engagement model…",
-  "Writing strategy context to GBrain memory…",
-  "Generating personal.md profile…",
-  "Selecting optimal carousel template…",
-  "Pipeline complete — strategy ready.",
-];
-
-function buildPersonalMd(data: {
-  website: string;
-  description: string;
-  audience: string;
-  tiktok: string;
-}) {
-  return [
-    `# Personal Profile`,
-    ``,
-    `## Product`,
-    `- **Website:** ${data.website}`,
-    `- **Description:** ${data.description}`,
-    ``,
-    `## Content Strategy`,
-    `- **Target Audience:** ${data.audience}`,
-    `- **Reference TikTok:** ${data.tiktok}`,
-    ``,
-  ].join("\n");
-}
-
 export default function OnboardingFlow({
   onComplete,
 }: {
-  onComplete: () => void;
+  onComplete: (data: ScanResult) => void;
 }) {
   const [step, setStep] = useState<Step>("welcome");
   const [website, setWebsite] = useState("");
@@ -68,6 +33,7 @@ export default function OnboardingFlow({
   const inputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
+  const scanResultRef = useRef<ScanResult | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -104,16 +70,58 @@ export default function OnboardingFlow({
     setLogLines([]);
     setCurrentTyping("");
 
-    const md = buildPersonalMd({ website, description, audience, tiktok });
-    setPersonalMd(md);
+    const response = await fetch("http://localhost:8000/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ website, description, audience, tiktok }),
+    });
 
-    for (const line of AGENT_STEPS) {
-      await typewriterLine(line);
-      await new Promise((r) => setTimeout(r, 350));
+    if (!response.body) return;
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const parts = buffer.split("\n\n");
+      buffer = parts.pop() ?? "";
+
+      for (const part of parts) {
+        const line = part.trim();
+        if (!line.startsWith("data:")) continue;
+        const raw = line.slice(5).trim();
+        let event: {
+          type: string;
+          message?: string;
+          strategy?: StrategyData;
+          slides?: SlideData[];
+          personalMd?: string;
+        };
+        try {
+          event = JSON.parse(raw);
+        } catch {
+          continue;
+        }
+
+        if (event.type === "log" && event.message) {
+          await typewriterLine(event.message);
+          await new Promise((r) => setTimeout(r, 350));
+        } else if (event.type === "done") {
+          setPersonalMd(event.personalMd ?? "");
+          setScanDone(true);
+          scanResultRef.current = {
+            strategy: event.strategy!,
+            slides: event.slides!,
+            personalMd: event.personalMd!,
+          };
+        }
+      }
     }
-
-    setScanDone(true);
-  }, [typewriterLine, website, description, audience, tiktok]);
+  }, [typewriterLine, website, description, audience, tiktok, onComplete]);
 
   const downloadPersonalMd = () => {
     const blob = new Blob([personalMd], { type: "text/markdown" });
@@ -401,7 +409,7 @@ export default function OnboardingFlow({
                   className="mt-10 flex items-center gap-3"
                 >
                   <button
-                    onClick={onComplete}
+                    onClick={() => scanResultRef.current && onComplete(scanResultRef.current)}
                     className="inline-flex items-center gap-2 bg-accent hover:bg-accent-hover text-white px-6 py-3 rounded-lg text-sm font-medium transition-colors cursor-pointer"
                   >
                     View Strategy

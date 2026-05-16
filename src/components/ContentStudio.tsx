@@ -3,25 +3,15 @@
 import { useState } from "react";
 import { motion } from "motion/react";
 import { RefreshCw, ExternalLink } from "lucide-react";
+import type { StrategyData, SlideData } from "@/types";
 
-const STRATEGY = {
-  hookPattern: "Contrarian opener — \"Stop doing X if you want Y\"",
-  slideStructure: "Hook → Problem → 3 Tips → Social Proof → CTA",
-  ctaStyle: "Soft CTA with profile mention",
-  nicheScore: 82,
-};
-
-const SLIDES = [
-  { number: 1, headline: "Stop Saving Money", body: "If you actually want to build wealth in 2026, saving isn't enough. Here's what the top 1% do instead." },
-  { number: 2, headline: "The Problem", body: "Inflation eats your savings at 3-5% per year. A savings account yields 0.5%. You're losing money by \"saving\" it." },
-  { number: 3, headline: "Tip #1: Automate Investing", body: "Set up automatic transfers to an index fund. Even $50/week compounds to $47K in 10 years." },
-  { number: 4, headline: "Tip #2: Skill Stacking", body: "Combine 2-3 average skills into one rare combo. Design + copywriting + AI = $150K freelance income." },
-  { number: 5, headline: "Tip #3: Build Assets", body: "Create something once, sell it forever. Digital products, templates, courses — your time shouldn't be linear." },
-  { number: 6, headline: "Proof It Works", body: "I went from $0 saved to $120K net worth in 18 months using exactly these 3 strategies." },
-  { number: 7, headline: "Follow for Part 2", body: "I'm breaking down my exact portfolio allocation next week. Follow so you don't miss it." },
-];
-
-export default function ContentStudio() {
+export default function ContentStudio({
+  strategy,
+  slides,
+}: {
+  strategy: StrategyData;
+  slides: SlideData[];
+}) {
   const [approval, setApproval] = useState<"pending" | "approved">("pending");
 
   return (
@@ -54,21 +44,21 @@ export default function ContentStudio() {
           Strategy
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-          <StrategyCard label="Hook Pattern" value={STRATEGY.hookPattern} />
-          <StrategyCard label="Structure" value={STRATEGY.slideStructure} />
-          <StrategyCard label="CTA Style" value={STRATEGY.ctaStyle} />
+          <StrategyCard label="Hook Pattern" value={strategy.hookPattern} />
+          <StrategyCard label="Structure" value={strategy.slideStructure} />
+          <StrategyCard label="CTA Style" value={strategy.ctaStyle} />
         </div>
         <div className="mt-6 flex items-center gap-4">
           <div className="flex-1 h-1 bg-subtle rounded-full overflow-hidden">
             <motion.div
               className="h-full bg-accent rounded-full"
               initial={{ width: 0 }}
-              animate={{ width: `${STRATEGY.nicheScore}%` }}
+              animate={{ width: `${strategy.nicheScore}%` }}
               transition={{ duration: 1, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
             />
           </div>
           <span className="text-xs font-mono text-muted">
-            {STRATEGY.nicheScore}% niche fit
+            {strategy.nicheScore}% niche fit
           </span>
         </div>
       </section>
@@ -76,7 +66,7 @@ export default function ContentStudio() {
       <section>
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-xs text-muted uppercase tracking-widest font-medium">
-            Carousel — 7 Slides
+            Carousel — {slides.length} Slides
           </h2>
           <div className="flex gap-2">
             <button className="inline-flex items-center gap-1.5 text-xs text-muted hover:text-foreground transition-colors cursor-pointer">
@@ -91,7 +81,7 @@ export default function ContentStudio() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {SLIDES.map((slide, i) => (
+          {slides.map((slide, i) => (
             <motion.div
               key={slide.number}
               initial={{ opacity: 0, y: 16 }}

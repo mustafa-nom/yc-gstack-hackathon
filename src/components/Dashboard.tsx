@@ -4,10 +4,11 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import ContentStudio from "./ContentStudio";
 import PerformanceLoop from "./PerformanceLoop";
+import type { ScanResult } from "@/types";
 
 type Tab = "studio" | "performance";
 
-export default function Dashboard() {
+export default function Dashboard({ scanResult }: { scanResult: ScanResult }) {
   const [tab, setTab] = useState<Tab>("studio");
 
   return (
@@ -45,7 +46,7 @@ export default function Dashboard() {
               exit={{ opacity: 0, y: -12 }}
               transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
             >
-              {tab === "studio" && <ContentStudio />}
+              {tab === "studio" && <ContentStudio strategy={scanResult.strategy} slides={scanResult.slides} />}
               {tab === "performance" && <PerformanceLoop />}
             </motion.div>
           </AnimatePresence>
