@@ -76,16 +76,16 @@ def line_height(font: ImageFont.FreeTypeFont, leading: int = 8) -> int:
     return (bbox[3] - bbox[1]) + leading
 
 
-def draw_text_with_shadow(draw, xy, text, font, fill, offset=3, shadow_alpha=180):
+def draw_outlined_text(draw, xy, text, font, fill, stroke_width=4):
     x, y = xy
-    draw.text((x + offset, y + offset), text, font=font, fill=(0, 0, 0, shadow_alpha))
-    draw.text((x, y), text, font=font, fill=fill)
+    draw.text((x, y), text, font=font, fill=fill,
+              stroke_width=stroke_width, stroke_fill=(0, 0, 0, 255))
 
 
-def draw_centered_text(draw, W, y, text, font, fill, offset=3, shadow_alpha=180):
+def draw_centered_text(draw, W, y, text, font, fill, stroke_width=4):
     bbox = font.getbbox(text)
     x = (W - (bbox[2] - bbox[0])) // 2
-    draw_text_with_shadow(draw, (x, y), text, font, fill, offset, shadow_alpha)
+    draw_outlined_text(draw, (x, y), text, font, fill, stroke_width)
 
 
 def add_gradient_overlay(img: Image.Image, start_y_frac: float, opacity: float) -> Image.Image:
@@ -142,13 +142,13 @@ def composite_title_slide(img, title, subtitle, config, out_path):
     y = H - int(H * 0.10) - total_h
 
     for line in title_lines:
-        draw_centered_text(draw, W, y, line, title_font, text_color)
+        draw_centered_text(draw, W, y, line, title_font, text_color, stroke_width=5)
         y += title_lh
 
     if sub_lines:
         y += 16
         for line in sub_lines:
-            draw_centered_text(draw, W, y, line, sub_font, text_color, offset=2)
+            draw_centered_text(draw, W, y, line, sub_font, text_color, stroke_width=3)
             y += sub_lh
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -190,13 +190,13 @@ def composite_content_slide(img, slide_num, title, body, config, out_path):
     y = int(H * 0.35) - total_h // 2
 
     for line in title_lines:
-        draw_centered_text(draw, W, y, line, title_font, text_color)
+        draw_centered_text(draw, W, y, line, title_font, text_color, stroke_width=5)
         y += title_lh
 
     if body_lines:
         y += 24
         for line in body_lines:
-            draw_centered_text(draw, W, y, line, body_font, text_color, offset=2)
+            draw_centered_text(draw, W, y, line, body_font, text_color, stroke_width=3)
             y += body_lh
 
     out_path.parent.mkdir(parents=True, exist_ok=True)

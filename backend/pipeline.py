@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import AsyncGenerator, List, Optional
 from scraper import scrape_website
 from apify_mock import get_trending_videos
-from claude_client import analyze_brand, extract_strategy, generate_slides
+from claude_client import analyze_brand, extract_strategy, generate_slides, generate_persona
 
 
 def _build_personal_md(
@@ -72,6 +72,9 @@ async def run_pipeline(
     yield "Building audience engagement model…", None
     yield "Writing strategy context to GBrain memory…", None
 
+    yield "Generating creator persona…", None
+    persona = await generate_persona(brand_summary, strategy, tiktok)
+
     yield "Generating personal.md profile…", None
 
     yield "Selecting optimal carousel template…", None
@@ -82,5 +85,6 @@ async def run_pipeline(
     yield "Pipeline complete — strategy ready.", {
         "strategy": strategy,
         "slides": slides,
+        "persona": persona,
         "personalMd": personal_md,
     }
