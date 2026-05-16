@@ -82,6 +82,12 @@ def draw_text_with_shadow(draw, xy, text, font, fill, offset=3, shadow_alpha=180
     draw.text((x, y), text, font=font, fill=fill)
 
 
+def draw_centered_text(draw, W, y, text, font, fill, offset=3, shadow_alpha=180):
+    bbox = font.getbbox(text)
+    x = (W - (bbox[2] - bbox[0])) // 2
+    draw_text_with_shadow(draw, (x, y), text, font, fill, offset, shadow_alpha)
+
+
 def add_gradient_overlay(img: Image.Image, start_y_frac: float, opacity: float) -> Image.Image:
     """Add a vertical gradient from transparent to dark, starting at start_y_frac."""
     W, H = img.size
@@ -136,13 +142,13 @@ def composite_title_slide(img, title, subtitle, config, out_path):
     y = H - int(H * 0.10) - total_h
 
     for line in title_lines:
-        draw_text_with_shadow(draw, (margin, y), line, title_font, text_color)
+        draw_centered_text(draw, W, y, line, title_font, text_color)
         y += title_lh
 
     if sub_lines:
         y += 16
         for line in sub_lines:
-            draw_text_with_shadow(draw, (margin, y), line, sub_font, text_color, offset=2)
+            draw_centered_text(draw, W, y, line, sub_font, text_color, offset=2)
             y += sub_lh
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -176,17 +182,21 @@ def composite_content_slide(img, slide_num, title, body, config, out_path):
     title_lh = line_height(title_font, leading=12)
     body_lh = line_height(body_font, leading=10)
 
-    # Start text at ~8% from top
-    y = int(H * 0.08)
+    total_h = len(title_lines) * title_lh
+    if body_lines:
+        total_h += 24 + len(body_lines) * body_lh
+
+    # Center the text block vertically (slightly above center)
+    y = int(H * 0.35) - total_h // 2
 
     for line in title_lines:
-        draw_text_with_shadow(draw, (margin, y), line, title_font, text_color)
+        draw_centered_text(draw, W, y, line, title_font, text_color)
         y += title_lh
 
     if body_lines:
-        y += 20
+        y += 24
         for line in body_lines:
-            draw_text_with_shadow(draw, (margin, y), line, body_font, text_color, offset=2)
+            draw_centered_text(draw, W, y, line, body_font, text_color, offset=2)
             y += body_lh
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
