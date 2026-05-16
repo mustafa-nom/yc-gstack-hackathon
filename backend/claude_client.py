@@ -1,5 +1,6 @@
 import json
 import re
+from urllib.parse import urlparse
 from openai import AsyncOpenAI
 
 _client = AsyncOpenAI()
@@ -9,7 +10,10 @@ _SYSTEM_PROMPT = (
     "You are a TikTok content strategist specializing in viral carousel content for product brands. "
     "Analyze brand positioning, audience psychology, and trending content patterns to produce "
     "high-converting carousel scripts. Be direct and specific. Use conversational, plain language. "
-    "Do not add commentary beyond what is requested."
+    "Do not add commentary beyond what is requested. "
+    "CRITICAL: Never invent specific product features, claims, ingredients, or capabilities that are "
+    "not supported by the source material the user provides. If source material is thin, write "
+    "category-level copy grounded only in what you actually know."
 )
 
 _STRATEGY_FALLBACK = {
@@ -29,14 +33,57 @@ def _strip_fences(text: str) -> str:
     return re.sub(r"```(?:json)?\s*|\s*```", "", text).strip()
 
 
-async def analyze_brand(website_content: str, description: str) -> str:
-    user_msg = (
-        "Analyze this product based on the following information.\n\n"
-        f"Website content:\n<website>\n{website_content}\n</website>\n\n"
-        f"Product description: {description or 'Not provided'}\n\n"
-        "Return a concise brand summary (3-5 sentences) covering: what the product does, "
-        "its unique value proposition, and its tone of voice."
-    )
+def _domain_slug(website: str) -> str:
+    try:
+        host = urlparse(website if "://" in website else "https://" + website).netloc
+        host = host.removeprefix("www.")
+        return host.split(".")[0] if host else website
+    except Exception:
+        return website
+
+
+async def analyze_brand(
+    website_content: str,
+    description: str,
+    *,
+    scrape_ok: bool = True,
+    website: str = "",
+) -> str:
+    if scrape_ok:
+        user_msg = (
+            "Analyze this product based on the following information.\n\n"
+            f"Website content:\n<website>\n{website_content}\n</website>\n\n"
+            f"Product description: {description or 'Not provided'}\n\n"
+            "Return a concise brand summary (3-5 sentences) covering: what the product does, "
+            "its unique value proposition, and its tone of voice. Ground every claim in the "
+            "website content or the description — do not invent features."
+        )
+    else:
+        slug = _domain_slug(website)
+        if description.strip():
+            user_msg = (
+                "The product website could not be reached. Build the brand summary using ONLY the "
+                "user's description below. Do not invent features that are not stated.\n\n"
+                f"Brand handle (from URL): {slug}\n"
+                f"Product description: {description}\n\n"
+                "Return a concise brand summary (3-5 sentences) covering: what the product does "
+                "based on the description, its likely value proposition, and a plausible tone of "
+                "voice. If a fact is not in the description, say it is unspecified rather than "
+                "guessing."
+            )
+        else:
+            user_msg = (
+                "The product website could not be reached and no description was provided.\n\n"
+                f"Brand handle (from URL): {slug}\n\n"
+                "Return a SHORT (2-3 sentence) brand summary that:\n"
+                "1. Names the brand by its handle.\n"
+                "2. Explicitly states that product details were not available.\n"
+                "3. Does NOT invent any features, claims, or product category.\n"
+                "Example shape: \"<Brand> is a brand we could not retrieve details on. Without "
+                "access to the product website or a description, no specific features or positioning "
+                "can be determined. The carousel that follows is intentionally generic until source "
+                "material is provided.\""
+            )
     response = await _client.chat.completions.create(
         model=_MODEL,
         max_tokens=512,
@@ -163,7 +210,21 @@ async def generate_persona(brand_summary: str, strategy: dict, tiktok_url: str) 
         return _PERSONA_FALLBACK
 
 
-async def generate_slides(strategy: dict, brand_summary: str) -> list[dict]:
+async def generate_slides(
+    strategy: dict, brand_summary: str, *, scrape_ok: bool = True
+) -> list[dict]:
+    grounding_note = (
+        "Ground every slide in the brand summary above. Do not invent product features, "
+        "ingredients, or claims that are not present in the brand summary."
+        if scrape_ok
+        else (
+            "IMPORTANT: The brand summary above was generated without access to the product "
+            "website. Do NOT invent specific product features, ingredients, statistics, or "
+            "claims (e.g., '9 out of 10 users', 'eco-friendly formula'). Keep the copy "
+            "category-level, addressing the audience's likely pain point and an aspirational "
+            "outcome. Reference the brand by name only."
+        )
+    )
     user_msg = (
         "Using this brand summary and content strategy, write the copy for a 7-slide TikTok carousel.\n\n"
         f"Brand summary:\n{brand_summary}\n\n"
@@ -171,6 +232,7 @@ async def generate_slides(strategy: dict, brand_summary: str) -> list[dict]:
         f"- Hook pattern: {strategy.get('hookPattern', '')}\n"
         f"- Structure: {strategy.get('slideStructure', '')}\n"
         f"- CTA style: {strategy.get('ctaStyle', '')}\n\n"
+        f"{grounding_note}\n\n"
         "Return a JSON array ONLY, no explanation, with exactly 7 objects, each having:\n"
         "- number: integer (1-7)\n"
         "- headline: string (3-6 words, punchy)\n"

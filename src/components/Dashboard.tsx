@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import ContentStudio from "./ContentStudio";
 import PerformanceLoop from "./PerformanceLoop";
+import { KnowledgeGraph } from "./KnowledgeGraph";
 import type { ScanResult } from "@/types";
 
 type Tab = "studio" | "performance";
@@ -12,7 +13,10 @@ export default function Dashboard({ scanResult }: { scanResult: ScanResult }) {
   const [tab, setTab] = useState<Tab>("studio");
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col relative">
+      <div className="opacity-30 pointer-events-none">
+        <KnowledgeGraph visible={tab === "studio"} />
+      </div>
       <header className="border-b border-card-border">
         <div className="max-w-4xl mx-auto px-6 flex items-center justify-between h-14">
           <span className="text-sm font-semibold tracking-tight text-foreground/80">
