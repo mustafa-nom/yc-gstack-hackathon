@@ -318,42 +318,44 @@ export default function OnboardingFlow({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.6 }}
-              className="w-full max-w-xl relative z-10"
+              className="fixed top-6 left-6 z-20 w-[380px] max-h-[calc(100vh-3rem)] glass-panel rounded-sm flex flex-col overflow-hidden"
             >
-              <div className="flex items-center gap-3 mb-8">
-                {!scanDone && (
-                  <Loader2 className="w-4 h-4 text-accent animate-spin" />
-                )}
-                <h2 className="text-xl font-semibold tracking-tight">
-                  {scanDone ? "Strategy ready" : "Analyzing your product…"}
+              <div className="flex items-center gap-2 px-5 py-4 border-b" style={{ borderColor: "rgba(120,120,120,0.15)" }}>
+                {!scanDone && <Loader2 className="w-3.5 h-3.5 text-accent animate-spin" />}
+                {scanDone && <div className="w-2 h-2 rounded-full bg-success" />}
+                <h2
+                  className="uppercase tracking-[0.08em]"
+                  style={{ fontFamily: "var(--font-display)", fontSize: "11px", color: "#d0d0d0" }}
+                >
+                  {scanDone ? "STRATEGY READY" : "ANALYZING PRODUCT"}
                 </h2>
               </div>
 
-              <div className="space-y-2 font-mono text-sm max-h-[60vh] overflow-y-auto pr-2">
+              <div className="flex-1 min-h-0 overflow-y-auto px-5 py-3 space-y-1.5 font-mono text-[11px] leading-relaxed">
                 {logLines.map((line, i) => {
                   const isLast = line.includes("complete");
                   const isPersonal = line.includes("personal.md");
                   return (
                     <motion.div
                       key={i}
-                      initial={{ opacity: 0, x: -8 }}
+                      initial={{ opacity: 0, x: -6 }}
                       animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.3 }}
-                      className="flex items-start gap-3"
+                      transition={{ duration: 0.25 }}
+                      className="flex items-start gap-2"
                     >
                       <span className={isLast ? "text-success" : isPersonal ? "text-accent" : "text-muted/50"}>
                         {isLast ? "✓" : isPersonal ? "+" : "›"}
                       </span>
-                      <span className={isLast ? "text-success" : isPersonal ? "text-accent" : "text-foreground/60"}>
+                      <span className={isLast ? "text-success" : isPersonal ? "text-accent" : "text-foreground/70"}>
                         {line}
                       </span>
                     </motion.div>
                   );
                 })}
                 {currentTyping && (
-                  <div className="flex items-start gap-3">
+                  <div className="flex items-start gap-2">
                     <span className="text-accent">›</span>
-                    <span className="text-foreground/60 cursor-blink">{currentTyping}</span>
+                    <span className="text-foreground/70 cursor-blink">{currentTyping}</span>
                   </div>
                 )}
                 <div ref={logEndRef} />
@@ -361,23 +363,24 @@ export default function OnboardingFlow({
 
               {scanDone && (
                 <motion.div
-                  initial={{ opacity: 0, y: 10 }}
+                  initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.3 }}
-                  className="mt-10 flex items-center gap-3"
+                  transition={{ duration: 0.4, delay: 0.2 }}
+                  className="px-5 py-3 border-t flex items-center gap-2"
+                  style={{ borderColor: "rgba(120,120,120,0.15)" }}
                 >
                   <button
                     onClick={() => scanResultRef.current && onComplete(scanResultRef.current)}
-                    className="inline-flex items-center gap-2 bg-accent hover:bg-accent-hover text-white px-6 py-3 rounded-lg text-sm font-medium transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1.5 bg-accent hover:bg-accent-hover text-white px-3.5 py-2 rounded-md text-xs font-medium transition-colors cursor-pointer"
                   >
                     View Strategy
-                    <ArrowRight className="w-4 h-4" />
+                    <ArrowRight className="w-3 h-3" />
                   </button>
                   <button
                     onClick={downloadPersonalMd}
-                    className="inline-flex items-center gap-2 text-muted hover:text-foreground px-4 py-3 rounded-lg text-sm font-medium transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1.5 text-muted hover:text-foreground px-2.5 py-2 rounded-md text-xs font-medium transition-colors cursor-pointer"
                   >
-                    <Download className="w-3.5 h-3.5" />
+                    <Download className="w-3 h-3" />
                     personal.md
                   </button>
                 </motion.div>
