@@ -37,3 +37,14 @@ No test suite exists yet.
 ## Next.js version note
 
 This project uses Next.js **16** — read `node_modules/next/dist/docs/` before writing any Next.js-specific code. APIs and conventions may differ significantly from earlier versions.
+
+## Dummy data — to be replaced with real backend data
+
+The following components currently render hardcoded/mock data. Each should be wired to a real backend source before shipping.
+
+- [ ] **[PerformanceLoop.tsx](src/components/PerformanceLoop.tsx)** — replace 5 hardcoded post rows (dates, niches, hooks, predicted/actual views, deltas) with real post-performance data; replace static "AI Learning" summary with backend-generated insights; wire up Regenerate/Export buttons.
+- [ ] **[ContentStudio.tsx](src/components/ContentStudio.tsx)** — make Approval action persist server-side (currently local state only); wire up Regenerate/Export buttons.
+- [ ] **[KnowledgeGraph.tsx](src/components/KnowledgeGraph.tsx)** — replace hardcoded agents (8), domains (15), trends (24), insights (41) and the random graph generation with real agent/trend/insight data from the backend.
+- [ ] **[StatsPanel.tsx](src/components/StatsPanel.tsx)** — replace 5 hardcoded animated stats (8 agents, 1,247 insights, 342 trends, 78% confidence, 156 nodes) with live values.
+- [ ] **[AgentViewer.tsx](src/components/AgentViewer.tsx)** — replace 12 mock TikTok posts and 10 hardcoded insights driving the fake scan animation with real scraped posts and live insights.
+- [ ] **[LandingOverlay.tsx](src/components/LandingOverlay.tsx)** — replace 5 hardcoded status messages with real pipeline-init progress events.

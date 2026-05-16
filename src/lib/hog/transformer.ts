@@ -108,6 +108,24 @@ export type TransformWriteResult = {
   hookCount: number;
 };
 
+// Across multiple niches in one run, the same slug (e.g. placeholder
+// `creators/@v3` that Claude emits in every niche) gets put repeatedly.
+// gbrain's `put` has an FK race when the same slug is re-written rapidly,
+// so we dedupe within a run — first-write-wins is fine for placeholder
+// creators / pattern pages whose content barely differs across niches.
+const writtenSlugsByRun = new Map<string, Set<string>>();
+
+function markWritten(runId: string, slug: string): boolean {
+  let set = writtenSlugsByRun.get(runId);
+  if (!set) {
+    set = new Set<string>();
+    writtenSlugsByRun.set(runId, set);
+  }
+  if (set.has(slug)) return false;
+  set.add(slug);
+  return true;
+}
+
 export async function transformAndWrite(
   strategy: Strategy,
   opts: { runId: string; niche: string; opId?: string },
@@ -151,6 +169,7 @@ export async function transformAndWrite(
   for (const [handle, c] of creatorByHandle) {
     const slug = `creators/${creatorSlugFromHandle(handle)}`;
     creatorSlugs.push(slug);
+    if (!markWritten(opts.runId, slug)) continue;
     putPageDetached(
       slug,
       {
@@ -167,6 +186,7 @@ export async function transformAndWrite(
   for (let i = 0; i < strategy.hooks.length; i++) {
     const h = strategy.hooks[i];
     const slug = `hooks/${nicheSlugFromName(opts.niche)}-${i + 1}`;
+    if (!markWritten(opts.runId, slug)) continue;
     putPageDetached(
       slug,
       {
@@ -191,6 +211,7 @@ export async function transformAndWrite(
   for (const [archetype, examples] of patternsByArchetype) {
     const slug = `patterns/${archetype}`;
     patternSlugs.push(slug);
+    if (!markWritten(opts.runId, slug)) continue;
     putPageDetached(
       slug,
       {

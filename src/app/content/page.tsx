@@ -2,7 +2,7 @@ import Link from "next/link";
 import ContentStudio from "@/components/ContentStudio";
 import NavHeader from "@/components/NavHeader";
 import { loadPerformanceFixture } from "@/app/actions/performance";
-import type { SlideData, StrategyData } from "@/types";
+import type { StrategyData } from "@/types";
 
 export default async function ContentPage() {
   const rows = await loadPerformanceFixture();
@@ -34,18 +34,12 @@ export default async function ContentPage() {
     nicheScore: 8.4,
   };
 
-  const slides: SlideData[] = latest.slides.map((s, i) => ({
-    number: i + 1,
-    headline: s.title,
-    body: s.body,
-  }));
-
   return (
     <div className="min-h-screen flex flex-col">
       <NavHeader />
       <main className="flex-1 relative z-10">
         <div className="max-w-4xl mx-auto px-6 py-12">
-          <ContentStudio strategy={strategy} slides={slides} />
+          <ContentStudio strategy={strategy} />
         </div>
       </main>
     </div>
