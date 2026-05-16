@@ -34,6 +34,9 @@ type ForceGraph3DInstance = {
   warmupTicks: (val: number) => ForceGraph3DInstance;
   cooldownTicks: (val: number) => ForceGraph3DInstance;
   refresh: () => void;
+  renderer: () => unknown;
+  camera: () => unknown;
+  postProcessingComposer: (composer: unknown) => unknown;
   _destructor: () => void;
 };
 
@@ -291,6 +294,37 @@ export function LiveGraph({ runId, onNodeSelect, onAllReady, onNicheReady }: Liv
       forceLink?.distance?.(() => 60 + Math.random() * 40);
       const forceCharge = graph.d3Force("charge") as { strength?: (fn: () => number) => void } | null;
       forceCharge?.strength?.(() => -160);
+
+      try {
+        const { EffectComposer } = await import("three/examples/jsm/postprocessing/EffectComposer.js");
+        const { RenderPass } = await import("three/examples/jsm/postprocessing/RenderPass.js");
+        const { UnrealBloomPass } = await import("three/examples/jsm/postprocessing/UnrealBloomPass.js");
+        const renderer = graph.renderer();
+        const scene = graph.scene();
+        const camera = graph.camera();
+        if (renderer && scene && camera) {
+          const composer = new EffectComposer(
+            renderer as InstanceType<typeof THREE.WebGLRenderer>,
+          );
+          composer.addPass(
+            new RenderPass(
+              scene as unknown as InstanceType<typeof THREE.Scene>,
+              camera as InstanceType<typeof THREE.Camera>,
+            ),
+          );
+          composer.addPass(
+            new UnrealBloomPass(
+              new THREE.Vector2(window.innerWidth, window.innerHeight),
+              1.35,
+              0.45,
+              0.28,
+            ),
+          );
+          graph.postProcessingComposer(composer);
+        }
+      } catch {
+        // bloom optional — silently fall back to plain render
+      }
 
       graph.cameraPosition({ x: 0, y: 0, z: 6 }, { x: 0, y: 0, z: 0 }, 0);
       setTimeout(
