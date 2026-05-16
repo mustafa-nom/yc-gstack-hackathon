@@ -1,4 +1,6 @@
 import json
+from dotenv import load_dotenv
+load_dotenv()
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -18,15 +20,14 @@ app.add_middleware(
 class AnalyzeRequest(BaseModel):
     website: str
     description: str = ""
-    audience: str
-    tiktok: str
+    tiktok: str = ""
 
 
 @app.post("/analyze")
 async def analyze(data: AnalyzeRequest):
     async def generate():
         async for message, payload in run_pipeline(
-            data.website, data.description, data.audience, data.tiktok
+            data.website, data.description, data.tiktok
         ):
             if payload is None:
                 chunk = json.dumps({"type": "log", "message": message})

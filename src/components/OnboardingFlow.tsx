@@ -9,7 +9,6 @@ const STEP_ORDER = [
   "welcome",
   "website",
   "description",
-  "audience",
   "tiktok",
   "scanning",
 ] as const;
@@ -24,7 +23,6 @@ export default function OnboardingFlow({
   const [step, setStep] = useState<Step>("welcome");
   const [website, setWebsite] = useState("");
   const [description, setDescription] = useState("");
-  const [audience, setAudience] = useState("");
   const [tiktok, setTiktok] = useState("");
   const [logLines, setLogLines] = useState<string[]>([]);
   const [currentTyping, setCurrentTyping] = useState("");
@@ -73,7 +71,7 @@ export default function OnboardingFlow({
     const response = await fetch("http://localhost:8000/analyze", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ website, description, audience, tiktok }),
+      body: JSON.stringify({ website, description, tiktok }),
     });
 
     if (!response.body) return;
@@ -121,7 +119,7 @@ export default function OnboardingFlow({
         }
       }
     }
-  }, [typewriterLine, website, description, audience, tiktok, onComplete]);
+  }, [typewriterLine, website, description, tiktok, onComplete]);
 
   const downloadPersonalMd = () => {
     const blob = new Blob([personalMd], { type: "text/markdown" });
@@ -133,8 +131,9 @@ export default function OnboardingFlow({
     URL.revokeObjectURL(url);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent, action: () => void) => {
-    if (e.key === "Enter" && !e.shiftKey) action();
+  const handleKeyDown = (e: React.KeyboardEvent, onEnter: () => void, onTab?: () => void) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onEnter(); }
+    if (e.key === "Tab") { e.preventDefault(); (onTab ?? onEnter)(); }
   };
 
   const goNext = (from: Step) => {
@@ -219,7 +218,7 @@ export default function OnboardingFlow({
                 value={website}
                 onChange={(e) => setWebsite(e.target.value)}
                 onKeyDown={(e) =>
-                  handleKeyDown(e, () => website.trim() && goNext("website"))
+                  handleKeyDown(e, () => website.trim() && goNext("website"), () => goNext("website"))
                 }
                 className="w-full bg-transparent border-b border-card-border py-3 text-lg text-foreground placeholder:text-muted/40 focus:outline-none focus:border-accent transition-colors"
               />
@@ -247,12 +246,9 @@ export default function OnboardingFlow({
                 placeholder="e.g. A budgeting app that helps Gen-Z save money through automated micro-investing"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    if (description.trim()) goNext("description");
-                  }
-                }}
+                onKeyDown={(e) =>
+                  handleKeyDown(e, () => description.trim() && goNext("description"), () => goNext("description"))
+                }
                 rows={2}
                 className="w-full bg-transparent border-b border-card-border py-3 text-lg text-foreground placeholder:text-muted/40 focus:outline-none focus:border-accent transition-colors resize-none"
               />
@@ -261,36 +257,6 @@ export default function OnboardingFlow({
                 onNext={() => description.trim() && goNext("description")}
                 nextDisabled={!description.trim()}
                 onSkip={() => goNext("description")}
-              />
-            </motion.div>
-          )}
-
-          {step === "audience" && (
-            <motion.div key="audience" {...motionProps} className="w-full max-w-lg">
-              <p className="text-sm text-muted mb-2 font-mono">
-                {String(inputStepNum).padStart(2, "0")}
-              </p>
-              <h2 className="text-2xl font-semibold tracking-tight mb-2">
-                Who&apos;s your target audience?
-              </h2>
-              <p className="text-muted text-sm mb-8">
-                Describe the people you want to reach.
-              </p>
-              <input
-                ref={inputRef}
-                type="text"
-                placeholder="e.g. Gen-Z beginners looking to save money"
-                value={audience}
-                onChange={(e) => setAudience(e.target.value)}
-                onKeyDown={(e) =>
-                  handleKeyDown(e, () => audience.trim() && goNext("audience"))
-                }
-                className="w-full bg-transparent border-b border-card-border py-3 text-lg text-foreground placeholder:text-muted/40 focus:outline-none focus:border-accent transition-colors"
-              />
-              <StepNav
-                onBack={() => goBack("audience")}
-                onNext={() => audience.trim() && goNext("audience")}
-                nextDisabled={!audience.trim()}
               />
             </motion.div>
           )}
@@ -313,7 +279,7 @@ export default function OnboardingFlow({
                 value={tiktok}
                 onChange={(e) => setTiktok(e.target.value)}
                 onKeyDown={(e) =>
-                  handleKeyDown(e, () => tiktok.trim() && runScan())
+                  handleKeyDown(e, () => runScan(), () => runScan())
                 }
                 className="w-full bg-transparent border-b border-card-border py-3 text-lg text-foreground placeholder:text-muted/40 focus:outline-none focus:border-accent transition-colors"
               />
@@ -324,14 +290,22 @@ export default function OnboardingFlow({
                 >
                   Back
                 </button>
-                <button
-                  onClick={() => tiktok.trim() && runScan()}
-                  disabled={!tiktok.trim()}
-                  className="inline-flex items-center gap-2 bg-accent hover:bg-accent-hover disabled:opacity-30 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer disabled:cursor-not-allowed"
-                >
-                  Analyze
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => runScan()}
+                    className="text-sm text-muted hover:text-foreground transition-colors cursor-pointer"
+                  >
+                    Skip
+                  </button>
+                  <button
+                    onClick={() => runScan()}
+                    disabled={!tiktok.trim()}
+                    className="inline-flex items-center gap-2 bg-accent hover:bg-accent-hover disabled:opacity-30 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer disabled:cursor-not-allowed"
+                  >
+                    Analyze
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
             </motion.div>
           )}

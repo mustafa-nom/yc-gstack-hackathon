@@ -29,14 +29,13 @@ def _strip_fences(text: str) -> str:
     return re.sub(r"```(?:json)?\s*|\s*```", "", text).strip()
 
 
-async def analyze_brand(website_content: str, description: str, audience: str) -> str:
+async def analyze_brand(website_content: str, description: str) -> str:
     user_msg = (
         "Analyze this product based on the following information.\n\n"
         f"Website content:\n<website>\n{website_content}\n</website>\n\n"
-        f"Product description: {description or 'Not provided'}\n"
-        f"Target audience: {audience}\n\n"
+        f"Product description: {description or 'Not provided'}\n\n"
         "Return a concise brand summary (3-5 sentences) covering: what the product does, "
-        "its unique value proposition, its tone of voice, and who it serves."
+        "its unique value proposition, and its tone of voice."
     )
     response = await _client.chat.completions.create(
         model=_MODEL,

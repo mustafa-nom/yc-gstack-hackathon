@@ -1,34 +1,57 @@
-from typing import AsyncGenerator
+from __future__ import annotations
+from typing import AsyncGenerator, Optional
 from scraper import scrape_website
 from apify_mock import get_trending_videos
 from claude_client import analyze_brand, extract_strategy, generate_slides
 
 
-def _build_personal_md(website: str, description: str, audience: str, tiktok: str) -> str:
+def _build_personal_md(
+    website: str,
+    description: str,
+    tiktok: str,
+    brand_summary: str,
+    strategy: dict,
+    slides: list[dict],
+) -> str:
+    slide_lines = "\n".join(
+        f"  {s['number']}. **{s['headline']}** — {s['body']}" for s in slides
+    )
     return "\n".join([
         "# Personal Profile",
         "",
         "## Product",
         f"- **Website:** {website}",
         f"- **Description:** {description or 'Not provided'}",
+        f"- **Reference TikTok:** {tiktok or 'Not provided'}",
+        "",
+        "## Brand Summary",
+        "",
+        brand_summary,
         "",
         "## Content Strategy",
-        f"- **Target Audience:** {audience}",
-        f"- **Reference TikTok:** {tiktok}",
+        "",
+        f"- **Hook Pattern:** {strategy.get('hookPattern', '')}",
+        f"- **Slide Structure:** {strategy.get('slideStructure', '')}",
+        f"- **CTA Style:** {strategy.get('ctaStyle', '')}",
+        f"- **Niche Score:** {strategy.get('nicheScore', '')} / 100",
+        "",
+        "## Carousel Script",
+        "",
+        slide_lines,
         "",
     ])
 
 
 async def run_pipeline(
-    website: str, description: str, audience: str, tiktok: str
-) -> AsyncGenerator[tuple[str, dict | None], None]:
+    website: str, description: str, tiktok: str
+) -> AsyncGenerator[tuple[str, Optional[dict]], None]:
     yield "Initializing agent pipeline…", None
 
     yield "Crawling product website…", None
     website_content = await scrape_website(website)
 
     yield "Analyzing brand positioning…", None
-    brand_summary = await analyze_brand(website_content, description, audience)
+    brand_summary = await analyze_brand(website_content, description)
 
     yield "Fetching trending videos via Apify…", None
     trending_videos = get_trending_videos()
@@ -43,10 +66,11 @@ async def run_pipeline(
     yield "Writing strategy context to GBrain memory…", None
 
     yield "Generating personal.md profile…", None
-    personal_md = _build_personal_md(website, description, audience, tiktok)
 
     yield "Selecting optimal carousel template…", None
     slides = await generate_slides(strategy, brand_summary)
+
+    personal_md = _build_personal_md(website, description, tiktok, brand_summary, strategy, slides)
 
     yield "Pipeline complete — strategy ready.", {
         "strategy": strategy,
