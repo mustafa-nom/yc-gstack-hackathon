@@ -98,6 +98,8 @@ export default function OnboardingFlow({
           message?: string;
           strategy?: StrategyData;
           slides?: SlideData[];
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          persona?: Record<string, any>;
           personalMd?: string;
         };
         try {
@@ -115,6 +117,7 @@ export default function OnboardingFlow({
           scanResultRef.current = {
             strategy: event.strategy!,
             slides: event.slides!,
+            persona: event.persona ?? {},
             personalMd: event.personalMd!,
           };
         }
@@ -127,7 +130,7 @@ export default function OnboardingFlow({
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "personal.md";
+    a.download = "persona.md";
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -381,7 +384,7 @@ export default function OnboardingFlow({
                     className="inline-flex items-center gap-1.5 text-muted hover:text-foreground px-2.5 py-2 rounded-md text-xs font-medium transition-colors cursor-pointer"
                   >
                     <Download className="w-3 h-3" />
-                    personal.md
+                    persona.md
                   </button>
                 </motion.div>
               )}

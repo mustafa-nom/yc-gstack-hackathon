@@ -94,7 +94,7 @@ async def run_pipeline(
     yield "Generating creator persona…", None
     persona = await generate_persona(brand_summary, strategy, tiktok)
 
-    yield "Generating personal.md profile…", None
+    yield "Generating persona.md profile…", None
 
     yield "Selecting optimal carousel template…", None
     slides = await generate_slides(strategy, brand_summary, scrape_ok=scrape_ok)
