@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import ContentStudio from "./ContentStudio";
-import PerformanceLoop from "./PerformanceLoop";
+import ContentCalendar from "./ContentCalendar";
 import { KnowledgeGraph } from "./KnowledgeGraph";
 import type { ScanResult } from "@/types";
 
@@ -33,7 +33,7 @@ export default function Dashboard({ scanResult }: { scanResult: ScanResult }) {
                     : "text-muted hover:text-foreground"
                 }`}
               >
-                {t === "studio" ? "Content" : "Performance"}
+                {t === "studio" ? "Content" : "Schedule"}
               </button>
             ))}
           </nav>
@@ -51,7 +51,7 @@ export default function Dashboard({ scanResult }: { scanResult: ScanResult }) {
               transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
             >
               {tab === "studio" && <ContentStudio strategy={scanResult.strategy} persona={scanResult.persona} />}
-              {tab === "performance" && <PerformanceLoop />}
+              {tab === "performance" && <ContentCalendar />}
             </motion.div>
           </AnimatePresence>
         </div>
