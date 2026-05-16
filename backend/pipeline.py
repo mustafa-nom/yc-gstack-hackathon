@@ -9,6 +9,7 @@ def _build_personal_md(
     website: str,
     description: str,
     tiktok: str,
+    website_content: str,
     brand_summary: str,
     strategy: dict,
     slides: List[dict],
@@ -16,7 +17,12 @@ def _build_personal_md(
     slide_lines = "\n".join(
         f"  {s['number']}. **{s['headline']}** — {s['body']}" for s in slides
     )
-    return "\n".join([
+    scraped_section = (
+        f"## Scraped Website Content\n\n```\n{website_content[:2000]}\n```\n"
+        if website_content and website_content != "Could not fetch website content."
+        else ""
+    )
+    return "\n".join(filter(None, [
         "# Personal Profile",
         "",
         "## Product",
@@ -24,6 +30,7 @@ def _build_personal_md(
         f"- **Description:** {description or 'Not provided'}",
         f"- **Reference TikTok:** {tiktok or 'Not provided'}",
         "",
+        scraped_section,
         "## Brand Summary",
         "",
         brand_summary,
@@ -39,7 +46,7 @@ def _build_personal_md(
         "",
         slide_lines,
         "",
-    ])
+    ]))
 
 
 async def run_pipeline(
@@ -70,7 +77,7 @@ async def run_pipeline(
     yield "Selecting optimal carousel template…", None
     slides = await generate_slides(strategy, brand_summary)
 
-    personal_md = _build_personal_md(website, description, tiktok, brand_summary, strategy, slides)
+    personal_md = _build_personal_md(website, description, tiktok, website_content, brand_summary, strategy, slides)
 
     yield "Pipeline complete — strategy ready.", {
         "strategy": strategy,
