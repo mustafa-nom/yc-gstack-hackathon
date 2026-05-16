@@ -1,0 +1,72 @@
+account:
+  name: "mealprep-test"
+  handle: "@mealprephacks"
+
+audience:
+  description: >
+    Busy 25-40 year olds — professionals, parents, gym-goers — who want to eat
+    healthily but don't have time to cook every day. Not fitness obsessives, just
+    people who want to stop eating takeout and feel better without spending hours
+    in the kitchen.
+  pain_points:
+    - "no time to cook healthy food during the week"
+    - "meal prep feels overwhelming to start"
+    - "ends up wasting food and money"
+  seeking: "simple repeatable systems to eat well with minimal effort"
+
+tone:
+  voice: "Practical, encouraging, slightly casual. Talks like someone who figured it out through trial and error, not a trained chef. Focuses on time savings and real results."
+  title_style: "Time/effort-framed practical tip"
+  example_hooks:
+    - "How I meal prep a full week of food in 90 minutes"
+    - "The 5 ingredients I always batch cook on Sunday"
+    - "Why most people fail at meal prep (and how to fix it)"
+
+visual_identity:
+  vibe: "Bright kitchen, fresh ingredients, organized containers"
+  aesthetic_keywords:
+    - "fresh"
+    - "organized"
+    - "bright"
+    - "wholesome"
+    - "real"
+  color_palette:
+    - "white"
+    - "warm wood"
+    - "green"
+    - "cream"
+  what_not_to_show:
+    - "overly styled food photography"
+    - "dirty or cluttered kitchens"
+    - "processed junk food"
+    - "diet culture imagery"
+
+content:
+  slides_per_carousel: 6
+  topics_per_batch: 3
+
+image_generation:
+  base_prompt: >
+    Candid iPhone photo, bright natural light, photorealistic, fresh and clean feel,
+    no text, no watermark, no phone frame, full bleed edge-to-edge
+  aspect_ratio: "9:16"
+  title_prompt: >
+    Person in a bright kitchen viewed from behind or side, standing at the counter prepping food,
+    face not visible, casual clothes, natural window light, warm wood tones, colorful vegetables
+    and containers on the counter, candid iPhone feel, no text, no watermark
+  scene_variety:
+    - "Bright kitchen counter with fresh vegetables chopped and organized, white surface, natural window light, no people, clean and airy"
+    - "Close-up of glass meal prep containers stacked neatly with colorful food inside, white background, soft natural light, no people"
+    - "Overhead flat lay of raw ingredients laid out on a wooden cutting board — greens, grains, proteins — bright top-down light, no people"
+    - "Side shot of a clean stovetop with a pan of food cooking, steam visible, warm kitchen lighting, no people, cozy feel"
+    - "Wide shot of a bright organized kitchen with containers lined up on the counter, Sunday prep scene, natural light, no people"
+
+text_overlay:
+  font_size_title: 52
+  font_size_body: 36
+  font_size_subtitle: 38
+  text_color: "#FFFFFF"
+  text_shadow: true
+  overlay_opacity: 0.75
+  slide_margin: 44
+  box_padding: 28
