@@ -2,9 +2,8 @@
 """
 Composite text over background images to produce final carousel slides.
 
-Slide 1 (title): text directly on image, no box, centered, upper area.
-Slides 2+ (content): dark rounded-rectangle box in upper area,
-                     numbered title (bold) + multi-sentence paragraph body.
+Slide 1 (title): text in lower portion of image, dark gradient behind it, no box.
+Slides 2+: text directly on (dark) background, numbered bold title + body, no box.
 
 Usage:
     python composite.py [--data output/slide_data.json] [--bg-dir output/backgrounds]
@@ -24,20 +23,26 @@ from PIL import Image, ImageDraw, ImageFont
 
 load_dotenv()
 
-FONT_PATHS = [
+FONT_PATHS_BLACK = [
+    "/Library/Fonts/SF-Pro-Display-Black.otf",
+    "/System/Library/Fonts/Supplemental/Impact.ttf",
     "/System/Library/Fonts/HelveticaNeue.ttc",
     "/System/Library/Fonts/Helvetica.ttc",
-    "/System/Library/Fonts/Arial.ttf",
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+]
+FONT_PATHS_REGULAR = [
+    "/Library/Fonts/SF-Pro-Display-Bold.otf",
+    "/Library/Fonts/SF-Pro-Text-Heavy.otf",
+    "/System/Library/Fonts/HelveticaNeue.ttc",
+    "/System/Library/Fonts/Helvetica.ttc",
 ]
 
 
-def find_font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
-    for path in FONT_PATHS:
+def find_font(size: int, bold: bool = True) -> ImageFont.FreeTypeFont:
+    paths = FONT_PATHS_BLACK if bold else FONT_PATHS_REGULAR
+    for path in paths:
         if os.path.exists(path):
             try:
-                index = 1 if bold and path.endswith(".ttc") else 0
-                return ImageFont.truetype(path, size, index=index)
+                return ImageFont.truetype(path, size, index=0)
             except Exception:
                 continue
     return ImageFont.load_default()
@@ -51,8 +56,7 @@ def hex_to_rgba(hex_color: str, alpha: int = 255) -> tuple:
 
 def wrap_text(text: str, font: ImageFont.FreeTypeFont, max_width: int) -> list:
     words = text.split()
-    lines = []
-    current = []
+    lines, current = [], []
     for word in words:
         test = " ".join(current + [word])
         bbox = font.getbbox(test)
@@ -67,62 +71,78 @@ def wrap_text(text: str, font: ImageFont.FreeTypeFont, max_width: int) -> list:
     return lines or [""]
 
 
-def line_height(font: ImageFont.FreeTypeFont, leading: int = 10) -> int:
+def line_height(font: ImageFont.FreeTypeFont, leading: int = 8) -> int:
     bbox = font.getbbox("Ag")
     return (bbox[3] - bbox[1]) + leading
 
 
-def draw_text_shadow(draw, xy, text, font, fill, offset=3):
+def draw_text_with_shadow(draw, xy, text, font, fill, offset=3, shadow_alpha=180):
     x, y = xy
-    draw.text((x + offset, y + offset), text, font=font, fill=(0, 0, 0, 160))
+    draw.text((x + offset, y + offset), text, font=font, fill=(0, 0, 0, shadow_alpha))
     draw.text((x, y), text, font=font, fill=fill)
 
 
+def add_gradient_overlay(img: Image.Image, start_y_frac: float, opacity: float) -> Image.Image:
+    """Add a vertical gradient from transparent to dark, starting at start_y_frac."""
+    W, H = img.size
+    start_y = int(H * start_y_frac)
+    gradient = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(gradient)
+    max_alpha = int(opacity * 255)
+    for y in range(start_y, H):
+        progress = (y - start_y) / max(H - start_y, 1)
+        alpha = int(max_alpha * progress)
+        draw.line([(0, y), (W, y)], fill=(0, 0, 0, alpha))
+    return Image.alpha_composite(img, gradient)
+
+
+def add_dark_overlay(img: Image.Image, opacity: float) -> Image.Image:
+    """Darken the entire image uniformly — helps text legibility on lighter bgs."""
+    overlay = Image.new("RGBA", img.size, (0, 0, 0, int(opacity * 255)))
+    return Image.alpha_composite(img, overlay)
+
+
 # ---------------------------------------------------------------------------
-# Slide 1 — title slide: no box, text directly on image
+# Slide 1 — title slide: gradient at bottom, text in lower area
 # ---------------------------------------------------------------------------
 
-def composite_title_slide(
-    img: Image.Image,
-    title: str,
-    subtitle: str,
-    config: dict,
-    out_path: Path,
-) -> None:
+def composite_title_slide(img, title, subtitle, config, out_path):
     overlay_cfg = config["text_overlay"]
     W, H = img.size
-    padding = overlay_cfg.get("padding", 60)
+    margin = overlay_cfg.get("slide_margin", 44)
     text_color = hex_to_rgba(overlay_cfg["text_color"])
 
-    title_font = find_font(overlay_cfg["font_size_title"], bold=False)
-    sub_font = find_font(overlay_cfg.get("font_size_subtitle", 36), bold=False)
+    title_font = find_font(overlay_cfg["font_size_title"], bold=True)
+    sub_font = find_font(overlay_cfg.get("font_size_subtitle", 38), bold=False)
 
     img_rgba = img.convert("RGBA")
-    draw = ImageDraw.Draw(img_rgba)
+    # Dark gradient from 45% down so text in lower half is readable
+    img_rgba = add_gradient_overlay(img_rgba, start_y_frac=0.45, opacity=0.85)
 
-    max_w = W - padding * 2
+    draw = ImageDraw.Draw(img_rgba)
+    max_w = W - margin * 2
+
     title_lines = wrap_text(title, title_font, max_w)
     sub_lines = wrap_text(subtitle, sub_font, max_w) if subtitle else []
 
-    title_lh = line_height(title_font, leading=12)
+    title_lh = line_height(title_font, leading=10)
     sub_lh = line_height(sub_font, leading=8)
 
-    # Position: start at 20% from top
-    y = int(H * 0.20)
+    total_h = len(title_lines) * title_lh
+    if sub_lines:
+        total_h += 16 + len(sub_lines) * sub_lh
+
+    # Bottom-anchor: text block ends ~10% from bottom
+    y = H - int(H * 0.10) - total_h
 
     for line in title_lines:
-        # Centered
-        bbox = title_font.getbbox(line)
-        x = (W - (bbox[2] - bbox[0])) // 2
-        draw_text_shadow(draw, (x, y), line, title_font, text_color, offset=3)
+        draw_text_with_shadow(draw, (margin, y), line, title_font, text_color)
         y += title_lh
 
     if sub_lines:
-        y += 18
+        y += 16
         for line in sub_lines:
-            bbox = sub_font.getbbox(line)
-            x = (W - (bbox[2] - bbox[0])) // 2
-            draw_text_shadow(draw, (x, y), line, sub_font, text_color, offset=2)
+            draw_text_with_shadow(draw, (margin, y), line, sub_font, text_color, offset=2)
             y += sub_lh
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -130,72 +150,43 @@ def composite_title_slide(
 
 
 # ---------------------------------------------------------------------------
-# Slides 2+ — content slides: rounded dark box + numbered title + paragraph
+# Slides 2+ — content slides: no box, text at top on dark background
 # ---------------------------------------------------------------------------
 
-def composite_content_slide(
-    img: Image.Image,
-    slide_num: int,
-    title: str,
-    body: str,
-    config: dict,
-    out_path: Path,
-) -> None:
+def composite_content_slide(img, slide_num, title, body, config, out_path):
     overlay_cfg = config["text_overlay"]
     W, H = img.size
-    slide_margin = overlay_cfg.get("slide_margin", 48)
-    box_padding = overlay_cfg.get("box_padding", 28)
-    overlay_alpha = int(overlay_cfg["overlay_opacity"] * 255)
+    margin = overlay_cfg.get("slide_margin", 44)
     text_color = hex_to_rgba(overlay_cfg["text_color"])
 
     title_font = find_font(overlay_cfg["font_size_title"], bold=True)
     body_font = find_font(overlay_cfg["font_size_body"], bold=False)
 
     img_rgba = img.convert("RGBA")
+    # Slight overall darkening so white text reads on any gym bg
+    img_rgba = add_dark_overlay(img_rgba, opacity=0.35)
 
-    # Text area width inside the box
-    box_left = slide_margin
-    box_right = W - slide_margin
-    max_text_w = (box_right - box_left) - box_padding * 2
-
-    numbered_title = f"{slide_num}. {title}"
-    title_lines = wrap_text(numbered_title, title_font, max_text_w)
-    body_lines = wrap_text(body, body_font, max_text_w) if body else []
-
-    title_lh = line_height(title_font, leading=10)
-    body_lh = line_height(body_font, leading=8)
-
-    content_h = len(title_lines) * title_lh
-    if body_lines:
-        content_h += 20 + len(body_lines) * body_lh  # 20px gap between title and body
-
-    box_h = content_h + box_padding * 2
-    box_top = int(H * 0.05)
-    box_bottom = box_top + box_h
-
-    # Draw rounded dark box
-    overlay = Image.new("RGBA", img_rgba.size, (0, 0, 0, 0))
-    ov_draw = ImageDraw.Draw(overlay)
-    ov_draw.rounded_rectangle(
-        [(box_left, box_top), (box_right, box_bottom)],
-        radius=18,
-        fill=(0, 0, 0, overlay_alpha),
-    )
-    img_rgba = Image.alpha_composite(img_rgba, overlay)
     draw = ImageDraw.Draw(img_rgba)
+    max_w = W - margin * 2
 
-    # Draw title (left-aligned inside box)
-    y = box_top + box_padding
-    x = box_left + box_padding
+    numbered_title = f"{slide_num}. {title.upper()}"
+    title_lines = wrap_text(numbered_title, title_font, max_w)
+    body_lines = wrap_text(body, body_font, max_w) if body else []
+
+    title_lh = line_height(title_font, leading=12)
+    body_lh = line_height(body_font, leading=10)
+
+    # Start text at ~8% from top
+    y = int(H * 0.08)
+
     for line in title_lines:
-        draw_text_shadow(draw, (x, y), line, title_font, text_color, offset=2)
+        draw_text_with_shadow(draw, (margin, y), line, title_font, text_color)
         y += title_lh
 
-    # Draw body paragraph
     if body_lines:
         y += 20
         for line in body_lines:
-            draw_text_shadow(draw, (x, y), line, body_font, text_color, offset=1)
+            draw_text_with_shadow(draw, (margin, y), line, body_font, text_color, offset=2)
             y += body_lh
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -209,8 +200,7 @@ def composite_content_slide(
 def open_or_placeholder(path: Optional[Path], size=(1080, 1920)) -> Image.Image:
     if path and path.exists():
         return Image.open(path).convert("RGBA")
-    # Dark neutral placeholder
-    return Image.new("RGBA", size, (28, 28, 35, 255))
+    return Image.new("RGBA", size, (18, 18, 22, 255))
 
 
 def main():
@@ -247,28 +237,23 @@ def main():
     for topic in topics:
         slug = topic["slug"]
         slides = topic["slides"]
-        print(f"  [{slug}] {len(slides) + 1} slides (1 title + {len(slides)} content)")
+        print(f"  [{slug}] {len(slides) + 1} slides")
 
-        # --- Slide 1: title slide ---
         total += 1
         bg = bg_dir / slug / "slide_01.png"
         out = out_dir / slug / "slide_01.png"
         img = open_or_placeholder(bg if bg.exists() else None)
-        subtitle = topic.get("subtitle", "")
-        composite_title_slide(img, topic["title_slide"], subtitle, persona, out)
-        label = "✓" if bg.exists() else "✓ (placeholder bg)"
-        print(f"    slide_01 (title) {label}")
+        composite_title_slide(img, topic["title_slide"], topic.get("subtitle", ""), persona, out)
+        print(f"    slide_01 (title) {'✓' if bg.exists() else '✓ (placeholder bg)'}")
         done += 1
 
-        # --- Slides 2+: content slides ---
         for i, slide in enumerate(slides, start=1):
             total += 1
             bg = bg_dir / slug / f"slide_{i+1:02d}.png"
             out = out_dir / slug / f"slide_{i+1:02d}.png"
             img = open_or_placeholder(bg if bg.exists() else None)
             composite_content_slide(img, i, slide["title"], slide["body"], persona, out)
-            label = "✓" if bg.exists() else "✓ (placeholder bg)"
-            print(f"    slide_{i+1:02d} (#{i}: {slide['title'][:30]}) {label}")
+            print(f"    slide_{i+1:02d} (#{i}: {slide['title'][:30]}) {'✓' if bg.exists() else '✓ (placeholder bg)'}")
             done += 1
 
     print(f"\nDone. {done}/{total} slides → {out_dir.resolve()}")
