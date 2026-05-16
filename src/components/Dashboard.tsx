@@ -46,7 +46,7 @@ export default function Dashboard({ scanResult }: { scanResult: ScanResult }) {
               exit={{ opacity: 0, y: -12 }}
               transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
             >
-              {tab === "studio" && <ContentStudio strategy={scanResult.strategy} slides={scanResult.slides} persona={scanResult.persona} />}
+              {tab === "studio" && <ContentStudio strategy={scanResult.strategy} persona={scanResult.persona} />}
               {tab === "performance" && <PerformanceLoop />}
             </motion.div>
           </AnimatePresence>

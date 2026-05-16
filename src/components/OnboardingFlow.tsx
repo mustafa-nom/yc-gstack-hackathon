@@ -129,7 +129,7 @@ export default function OnboardingFlow({
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "personal.md";
+    a.download = "persona.md";
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -397,7 +397,7 @@ export default function OnboardingFlow({
                     className="inline-flex items-center gap-2 text-muted hover:text-foreground px-4 py-3 rounded-lg text-sm font-medium transition-colors cursor-pointer"
                   >
                     <Download className="w-3.5 h-3.5" />
-                    personal.md
+                    persona.md
                   </button>
                 </motion.div>
               )}

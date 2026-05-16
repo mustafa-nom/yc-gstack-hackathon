@@ -63,6 +63,11 @@ class GenerateRequest(BaseModel):
 async def generate_carousel(data: GenerateRequest):
     async def stream():
         yield f"data: {json.dumps({'type': 'log', 'message': 'Starting carousel generation…'})}\n\n"
+        # Clear previous slides so we only return slides from this run
+        import shutil
+        if SLIDES_OUTPUT.exists():
+            shutil.rmtree(SLIDES_OUTPUT)
+        SLIDES_OUTPUT.mkdir(parents=True, exist_ok=True)
         cmd = [
             "python", "generate_carousel.py",
             "--persona-json", json.dumps(data.persona),
