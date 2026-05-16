@@ -346,8 +346,8 @@ export function KnowledgeGraph({ visible, onNodeClick }: KnowledgeGraphProps) {
       .backgroundColor(VISUAL_CONFIG.background)
       .showNavInfo(false)
       .enableNodeDrag(false)
-      .warmupTicks(80)
-      .cooldownTicks(40)
+      .warmupTicks(160)
+      .cooldownTicks(120)
       .graphData({ nodes: [], links: [] })
       .nodeRelSize(1)
       .nodeOpacity(0.92)
@@ -386,11 +386,11 @@ export function KnowledgeGraph({ visible, onNodeClick }: KnowledgeGraphProps) {
     // Forces (Slipstream)
     const chargeForce = graph.d3Force("charge") as { strength?: (fn: (n: GraphNode) => number) => void } | null
     if (chargeForce?.strength) {
-      chargeForce.strength((n: GraphNode) => (n.type === "agent" ? -900 : -220))
+      chargeForce.strength((n: GraphNode) => (n.type === "agent" ? -480 : -160))
     }
     const linkForce = graph.d3Force("link") as { distance?: (fn: (l: GraphLink) => number) => void } | null
     if (linkForce?.distance) {
-      linkForce.distance((l: GraphLink) => (l.linkType === "cross" ? 130 : 72))
+      linkForce.distance((l: GraphLink) => (l.linkType === "cross" ? 160 : 95))
     }
 
     // Bloom post-processing
@@ -423,46 +423,79 @@ export function KnowledgeGraph({ visible, onNodeClick }: KnowledgeGraphProps) {
       // bloom optional
     }
 
-    // Camera intro
-    graph.cameraPosition({ x: 0, y: 0, z: 4 }, { x: 0, y: 0, z: 0 }, 0)
+    // Camera intro — start far, ease to a wide overview
+    graph.cameraPosition({ x: 0, y: 0, z: 60 }, { x: 0, y: 0, z: 0 }, 0)
     setTimeout(() => {
-      graph.cameraPosition({ x: 100, y: 80, z: 430 }, { x: 0, y: 0, z: 0 }, 3600)
-    }, 100)
+      graph.cameraPosition({ x: 0, y: 120, z: 950 }, { x: 0, y: 0, z: 0 }, 4200)
+    }, 200)
 
     graphRef.current = graph
 
-    // Progressive growth: add nodes one-by-one in waves (agents → trends → insights)
-    const nodeOrder: GraphNode[] = [
-      ...fullData.nodes.filter((n) => n.type === "agent"),
-      ...fullData.nodes.filter((n) => n.type === "trend"),
-      ...fullData.nodes.filter((n) => n.type === "insight"),
-    ]
+    // Progressive growth: add nodes in waves (agents one-by-one, trends paired, insights in small batches)
+    // to keep the d3 force simulation from reheating too aggressively.
+    const agents = fullData.nodes.filter((n) => n.type === "agent")
+    const trends = fullData.nodes.filter((n) => n.type === "trend")
+    const insights = fullData.nodes.filter((n) => n.type === "insight")
+
+    type GrowthStep = { nodes: GraphNode[]; delay: number }
+    const steps: GrowthStep[] = []
+    for (const a of agents) steps.push({ nodes: [a], delay: 220 })
+    for (let i = 0; i < trends.length; i += 2) {
+      steps.push({ nodes: trends.slice(i, i + 2), delay: 180 })
+    }
+    for (let i = 0; i < insights.length; i += 4) {
+      steps.push({ nodes: insights.slice(i, i + 4), delay: 140 })
+    }
+
     const presentIds = new Set<string>()
     const liveNodes: GraphNode[] = []
     const liveLinks: GraphLink[] = []
     let cursor = 0
 
-    const growthStart = setTimeout(() => {
-      growthTimerRef.current = setInterval(() => {
-        if (cursor >= nodeOrder.length) {
-          if (growthTimerRef.current) clearInterval(growthTimerRef.current)
-          growthTimerRef.current = null
+    const seedPositionNearNeighbor = (n: GraphNode) => {
+      // Find an already-placed neighbor and seed the new node's coords near it
+      // so d3-force only has to nudge it slightly instead of teleport it.
+      for (const link of fullData.links) {
+        const sId = typeof link.source === "string" ? link.source : link.source.id
+        const tId = typeof link.target === "string" ? link.target : link.target.id
+        let neighborId: string | null = null
+        if (sId === n.id && presentIds.has(tId)) neighborId = tId
+        else if (tId === n.id && presentIds.has(sId)) neighborId = sId
+        if (!neighborId) continue
+        const neighbor = liveNodes.find((ln) => ln.id === neighborId)
+        if (neighbor && neighbor.x !== undefined) {
+          const jitter = 40
+          n.x = (neighbor.x ?? 0) + (Math.random() - 0.5) * jitter
+          n.y = (neighbor.y ?? 0) + (Math.random() - 0.5) * jitter
+          n.z = (neighbor.z ?? 0) + (Math.random() - 0.5) * jitter
           return
         }
-        const next = nodeOrder[cursor]
-        presentIds.add(next.id)
-        liveNodes.push(next)
-        for (const link of fullData.links) {
-          const sId = typeof link.source === "string" ? link.source : link.source.id
-          const tId = typeof link.target === "string" ? link.target : link.target.id
-          if (presentIds.has(sId) && presentIds.has(tId) && !liveLinks.includes(link)) {
-            liveLinks.push(link)
-          }
+      }
+    }
+
+    const advance = () => {
+      if (cursor >= steps.length) {
+        growthTimerRef.current = null
+        return
+      }
+      const step = steps[cursor++]
+      for (const n of step.nodes) {
+        seedPositionNearNeighbor(n)
+        presentIds.add(n.id)
+        liveNodes.push(n)
+      }
+      for (const link of fullData.links) {
+        const sId = typeof link.source === "string" ? link.source : link.source.id
+        const tId = typeof link.target === "string" ? link.target : link.target.id
+        if (presentIds.has(sId) && presentIds.has(tId) && !liveLinks.includes(link)) {
+          liveLinks.push(link)
         }
-        graph.graphData({ nodes: [...liveNodes], links: [...liveLinks] })
-        cursor++
-      }, 70)
-    }, 600)
+      }
+      graph.graphData({ nodes: [...liveNodes], links: [...liveLinks] })
+      growthTimerRef.current = setTimeout(advance, step.delay)
+    }
+
+    const growthStart = setTimeout(advance, 1400)
 
     const handleResize = () => {
       if (graphRef.current) {
@@ -475,7 +508,7 @@ export function KnowledgeGraph({ visible, onNodeClick }: KnowledgeGraphProps) {
       window.removeEventListener("resize", handleResize)
       clearTimeout(growthStart)
       if (growthTimerRef.current) {
-        clearInterval(growthTimerRef.current)
+        clearTimeout(growthTimerRef.current)
         growthTimerRef.current = null
       }
     }

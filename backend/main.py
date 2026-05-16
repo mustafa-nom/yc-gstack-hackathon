@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from pipeline import run_pipeline
+from scraper import resolve_url
 
 CAROUSEL_DIR = Path(__file__).parent / "carousel"
 
@@ -25,6 +26,16 @@ class AnalyzeRequest(BaseModel):
     website: str
     description: str = ""
     tiktok: str = ""
+
+
+class ValidateUrlRequest(BaseModel):
+    url: str
+
+
+@app.post("/validate-url")
+async def validate_url(data: ValidateUrlRequest):
+    resolved = await resolve_url(data.url)
+    return {"valid": resolved is not None, "resolved": resolved}
 
 
 @app.post("/analyze")
