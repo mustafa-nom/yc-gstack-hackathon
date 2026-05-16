@@ -97,6 +97,8 @@ export default function OnboardingFlow({
           message?: string;
           strategy?: StrategyData;
           slides?: SlideData[];
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          persona?: Record<string, any>;
           personalMd?: string;
         };
         try {
@@ -114,6 +116,7 @@ export default function OnboardingFlow({
           scanResultRef.current = {
             strategy: event.strategy!,
             slides: event.slides!,
+            persona: event.persona ?? {},
             personalMd: event.personalMd!,
           };
         }

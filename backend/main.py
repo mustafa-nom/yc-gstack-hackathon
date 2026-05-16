@@ -6,12 +6,17 @@ load_dotenv()
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from pipeline import run_pipeline
 
 CAROUSEL_DIR = Path(__file__).parent / "carousel"
+SLIDES_OUTPUT = CAROUSEL_DIR / "output" / "final"
+SLIDES_OUTPUT.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI()
+
+app.mount("/slides", StaticFiles(directory=str(SLIDES_OUTPUT)), name="slides")
 
 app.add_middleware(
     CORSMiddleware,
@@ -76,7 +81,11 @@ async def generate_carousel(data: GenerateRequest):
             yield f"data: {json.dumps({'type': 'log', 'message': line.rstrip()})}\n\n"
         proc.wait()
         if proc.returncode == 0:
-            yield f"data: {json.dumps({'type': 'done', 'message': 'Carousel generated successfully.'})}\n\n"
+            image_urls = sorted([
+                f"/slides/{p.parent.name}/{p.name}"
+                for p in SLIDES_OUTPUT.rglob("slide_*.png")
+            ])
+            yield f"data: {json.dumps({'type': 'done', 'message': 'Carousel generated successfully.', 'imageUrls': image_urls})}\n\n"
         else:
             yield f"data: {json.dumps({'type': 'error', 'message': 'Generation failed.'})}\n\n"
 
