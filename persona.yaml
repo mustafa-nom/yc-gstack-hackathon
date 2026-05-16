@@ -1,0 +1,102 @@
+account:
+  name: "hackathon-demo"
+  handle: "@hackathonacc"
+  canva_template_url: "https://www.canva.com/design/DAHAA0VwYWQ/8qV0Xdqxzwx9gy5ZFEuS3g/edit"
+  canva_template_id: "DAHAA0VwYWQ"
+
+audience:
+  description: >
+    Serious-but-time-constrained male lifters (22–38), desk workers, busy lifestyles,
+    intermediate level. Topics: efficient training, recovery, consistency, mental habits.
+    Not beginner gym bros — intermediate lifters optimizing around work and life constraints.
+  pain_points:
+    - "limited time between work and training"
+    - "plateauing despite consistent effort"
+    - "recovery falling behind volume"
+  seeking: "efficient optimization, not motivation — they already lift"
+
+tone:
+  voice: "Direct, slightly contrarian, time/effort-framed. Treats the viewer as someone who already lifts and wants the optimization. No motivation fluff, no beginner basics."
+  title_style: "Direct contrarian hook"
+  example_hooks:
+    - "Why your warm-up is holding back your gains"
+    - "How desk workers can build serious muscle"
+    - "Things I stopped doing that made lifting easier"
+
+visual_identity:
+  vibe: "Serious intermediate lifter. Real gym. No cringe."
+  aesthetic_keywords:
+    - "masculine"
+    - "gritty"
+    - "utilitarian"
+    - "disciplined"
+    - "unbranded"
+  scene_elements:
+    - "actual gym — plates, rack, dumbbells, mirrors, chalk bowl"
+    - "hoodie, lifting tee, or tank — worn in, not new"
+    - "water bottle, wrist wraps, lifting belt on the floor"
+    - "dim overhead gym lighting (harsh fluorescents or warm LEDs)"
+    - "between-sets phone perspective, chalk on hands"
+  color_palette:
+    - "black"
+    - "charcoal"
+    - "gunmetal"
+    - "white"
+  accent_colors:
+    - "blood red"
+    - "safety orange"
+    - "steel blue"
+  what_not_to_show:
+    - "home garage gym that looks like a basement"
+    - "aesthetic gym-girl vibes"
+    - "pastels"
+    - "motivational posters with sunsets"
+
+  # Slide 1 and content slides have different jobs
+  slide_1:
+    job: "scroll-stop — big visible muscle required"
+    style: "Jacked physique, thick chest, broad capped shoulders, full pumped biceps, defined abs, visible vascularity. Shirtless mirror selfie with cap pulled down hiding the face."
+    note: "Big muscles drive scroll-stop on TikTok. Relatability lives in the body copy on slides 2–6."
+  content_slides:
+    job: "intermediate optimizer tone — efficient training, recovery, mental habits"
+    note: "Body copy carries the relatability. Slide 1 buys the click."
+
+  carousel_design: "Black or dark-charcoal backgrounds, condensed bold sans-serif, high contrast white text, slight grit/noise texture okay, numbers or small icons as accents. Feel: lifting app UI or training log."
+  one_liner: "An intermediate lifter's phone between sets in a real gym, lights slightly dim."
+
+content:
+  slides_per_carousel: 6       # 1 title + 5 content slides
+  topics_per_batch: 3
+  include_lifestack: true       # one slide MUST be titled exactly "Lifestack"
+  lifestack_body: "Auto-schedules your day around your energy so training fits"
+
+image_generation:
+  # Title slide: one per topic, 1:1 aspect ratio
+  # Cycles through 6 distinct composition variants so batches don't look identical
+  title_prompt_base: >
+    Candid iPhone photo in a real commercial gym with dark painted walls,
+    flat overhead panel lights, heavy dumbbell racks, cable pulleys and weight machines,
+    authentic gym floor, cool muted dark tones, natural low-light grain,
+    no phone frame, no app UI, no social media overlay, no text, no watermark,
+    no white border, no photo frame, full bleed edge-to-edge image
+  title_prompt_variants:
+    - "Mirror selfie of a JACKED guy early 20s, thick chest broad capped shoulders full pumped biceps, shirtless, grey joggers, black baseball cap brim pulled all the way down hiding his face, wall of dumbbells behind him"
+    - "Mirror selfie of a JACKED guy early 20s HUGE built physique thick striated chest capped delts big biceps, shirtless, black shorts, navy baseball cap brim down hiding face, squat rack corner with barbells and plates"
+    - "Over-the-shoulder mirror selfie of a JACKED guy early 20s thick muscular back wide flared lats dense traps, shirtless, dark joggers, black bucket hat hiding face, bench press area behind"
+    - "Mirror selfie of a JACKED guy early 20s crouched slightly, thick pumped chest big shoulders full biceps defined six-pack, shirtless, black shorts, dark olive cap all the way down, cable machine behind"
+    - "Low-angle mirror selfie of a JACKED guy early 20s, low angle accentuating thick wide chest capped delts full big biceps, shirtless, black basketball shorts, plain black cap hiding face, squat racks on either side"
+    - "Side-angle mirror selfie of a JACKED guy early 20s thick chest profile capped shoulder big peaked bicep defined intercostals, shirtless side profile, grey joggers, dark brown cap hiding face, kettlebell rack behind"
+
+  # Content slides: 5 per topic (pages 2-6), 1:1 aspect ratio
+  content_prompt_tail: >
+    Candid iPhone photo of a gym interior, heavy black iron dumbbells and weight equipment
+    on dark rubber flooring, dim lighting with a dark moody atmosphere but equipment clearly
+    visible in frame, flat overhead LED panel lights, no single spotlight, no lens flare,
+    no people in frame, raw unedited snapshot feel, no text, no timestamp, no watermark,
+    no border, full bleed edge-to-edge image
+  content_prompt_compositions:
+    - "Low angle shot looking along the gym floor toward rows of equipment receding into the distance."
+    - "Tight close-up detail shot of dumbbells resting on a rack with rubber floor texture in the foreground, background softly blurred."
+    - "Wide shot showing the full gym space with multiple machines and squat racks, black ceiling overhead."
+    - "Vertical upward-facing shot from below a barbell loaded with plates on a squat rack, ceiling and overhead lights visible above."
+    - "Ground-level view of a dark gym corner with kettlebells and weight plates scattered on rubber flooring."
