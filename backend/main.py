@@ -29,16 +29,9 @@ async def analyze(data: AnalyzeRequest):
         async for message, payload in run_pipeline(
             data.website, data.description, data.tiktok
         ):
-            if payload is None:
-                chunk = json.dumps({"type": "log", "message": message})
-            else:
-                chunk = json.dumps({
-                    "type": "done",
-                    "strategy": payload["strategy"],
-                    "slides": payload["slides"],
-                    "personalMd": payload["personalMd"],
-                })
-            yield f"data: {chunk}\n\n"
+            yield f"data: {json.dumps({'type': 'log', 'message': message})}\n\n"
+            if payload is not None:
+                yield f"data: {json.dumps({'type': 'done', 'strategy': payload['strategy'], 'slides': payload['slides'], 'personalMd': payload['personalMd']})}\n\n"
 
     return StreamingResponse(
         generate(),

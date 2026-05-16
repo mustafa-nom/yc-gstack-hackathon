@@ -218,7 +218,7 @@ export default function OnboardingFlow({
                 value={website}
                 onChange={(e) => setWebsite(e.target.value)}
                 onKeyDown={(e) =>
-                  handleKeyDown(e, () => website.trim() && goNext("website"), () => goNext("website"))
+                  handleKeyDown(e, () => website.trim() && goNext("website"))
                 }
                 className="w-full bg-transparent border-b border-card-border py-3 text-lg text-foreground placeholder:text-muted/40 focus:outline-none focus:border-accent transition-colors"
               />

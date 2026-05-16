@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import AsyncGenerator, Optional
+from typing import AsyncGenerator, List, Optional
 from scraper import scrape_website
 from apify_mock import get_trending_videos
 from claude_client import analyze_brand, extract_strategy, generate_slides
@@ -11,7 +11,7 @@ def _build_personal_md(
     tiktok: str,
     brand_summary: str,
     strategy: dict,
-    slides: list[dict],
+    slides: List[dict],
 ) -> str:
     slide_lines = "\n".join(
         f"  {s['number']}. **{s['headline']}** — {s['body']}" for s in slides
