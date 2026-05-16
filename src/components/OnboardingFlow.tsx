@@ -3,7 +3,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Loader2, ArrowRight, Zap, Download } from "lucide-react";
-import type { ScanResult, StrategyData, SlideData } from "@/types";
+import type { ScanResult, StrategyData, SlideData } from "@/types"
+import { KnowledgeGraph } from "@/components/KnowledgeGraph";
 
 const STEP_ORDER = [
   "welcome",
@@ -160,6 +161,7 @@ export default function OnboardingFlow({
 
   return (
     <div className="min-h-screen flex flex-col">
+      <KnowledgeGraph visible={step === "scanning"} />
       {showProgress && (
         <div className="fixed top-0 left-0 right-0 h-[2px] bg-subtle z-50">
           <motion.div
@@ -316,7 +318,7 @@ export default function OnboardingFlow({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.6 }}
-              className="w-full max-w-xl"
+              className="w-full max-w-xl relative z-10"
             >
               <div className="flex items-center gap-3 mb-8">
                 {!scanDone && (
@@ -339,26 +341,10 @@ export default function OnboardingFlow({
                       transition={{ duration: 0.3 }}
                       className="flex items-start gap-3"
                     >
-                      <span
-                        className={
-                          isLast
-                            ? "text-success"
-                            : isPersonal
-                              ? "text-accent"
-                              : "text-muted/50"
-                        }
-                      >
+                      <span className={isLast ? "text-success" : isPersonal ? "text-accent" : "text-muted/50"}>
                         {isLast ? "✓" : isPersonal ? "+" : "›"}
                       </span>
-                      <span
-                        className={
-                          isLast
-                            ? "text-success"
-                            : isPersonal
-                              ? "text-accent"
-                              : "text-foreground/60"
-                        }
-                      >
+                      <span className={isLast ? "text-success" : isPersonal ? "text-accent" : "text-foreground/60"}>
                         {line}
                       </span>
                     </motion.div>
@@ -367,9 +353,7 @@ export default function OnboardingFlow({
                 {currentTyping && (
                   <div className="flex items-start gap-3">
                     <span className="text-accent">›</span>
-                    <span className="text-foreground/60 cursor-blink">
-                      {currentTyping}
-                    </span>
+                    <span className="text-foreground/60 cursor-blink">{currentTyping}</span>
                   </div>
                 )}
                 <div ref={logEndRef} />
