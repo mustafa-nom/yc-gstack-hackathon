@@ -51,12 +51,26 @@ async def analyze_brand(
 ) -> str:
     if scrape_ok:
         user_msg = (
-            "Analyze this product based on the following information.\n\n"
+            "Analyze this product brand using the multi-page website content below. "
+            "The content includes the homepage plus subpages like /about, /features, /pricing, "
+            "/faq, /blog. Use ALL of it.\n\n"
             f"Website content:\n<website>\n{website_content}\n</website>\n\n"
-            f"Product description: {description or 'Not provided'}\n\n"
-            "Return a concise brand summary (3-5 sentences) covering: what the product does, "
-            "its unique value proposition, and its tone of voice. Ground every claim in the "
-            "website content or the description — do not invent features."
+            f"User-provided description: {description or 'Not provided'}\n\n"
+            "Produce a structured brand brief that downstream TikTok content generation will rely on. "
+            "Cover ALL of the following in plain prose paragraphs (not bullets):\n"
+            "1. WHAT IT IS — one sentence naming the brand, the category, and the core thing it does.\n"
+            "2. KEY FEATURES — list 3-5 specific, named features pulled verbatim from the site "
+            "(e.g. \"Energy Zones\", \"Wearable Insights\"). Quote feature names when possible.\n"
+            "3. TARGET AUDIENCE — who exactly the product is for; cite signals from the site "
+            "(testimonials, blog topics, FAQ phrasing) when inferring.\n"
+            "4. PAIN POINTS the product addresses — concrete frustrations or failures of the "
+            "alternative (status quo) that the site mentions or implies.\n"
+            "5. VALUE PROPS / DIFFERENTIATION — what the site claims sets it apart.\n"
+            "6. TONE OF VOICE — describe the brand's writing voice using 2-3 adjectives plus a "
+            "short quote that illustrates it.\n"
+            "7. PRICING / BUSINESS MODEL — if present anywhere on the site.\n\n"
+            "Be specific. Use concrete nouns from the source. Do not invent. If a section has no "
+            "evidence, write \"not stated on the site\" rather than guessing. Aim for 200-300 words total."
         )
     else:
         slug = _domain_slug(website)
@@ -86,7 +100,7 @@ async def analyze_brand(
             )
     response = await _client.chat.completions.create(
         model=_MODEL,
-        max_tokens=512,
+        max_tokens=900,
         messages=[
             {"role": "system", "content": _SYSTEM_PROMPT},
             {"role": "user", "content": user_msg},
@@ -103,14 +117,21 @@ async def extract_strategy(
         for v in trending_videos
     )
     user_msg = (
-        "Given this brand summary and trending TikTok data, determine the optimal content strategy.\n\n"
-        f"Brand summary:\n{brand_summary}\n\n"
+        "Given this BRAND BRIEF and trending TikTok signal, determine the optimal carousel strategy. "
+        "Tailor each field to the brand's actual category, audience, and pain points — do not "
+        "produce generic answers.\n\n"
+        f"Brand brief:\n{brand_summary}\n\n"
         f"Trending videos (sample):\n{videos_fmt}\n\n"
         f"Reference TikTok URL: {tiktok_url}\n\n"
         "Return a JSON object ONLY, no explanation, with exactly these keys:\n"
-        "- hookPattern: string describing the best hook style\n"
-        "- slideStructure: string describing the carousel flow (e.g. \"Hook → Problem → 3 Tips → CTA\")\n"
-        "- ctaStyle: string describing the call-to-action approach\n"
+        "- hookPattern: string. Describe the hook STYLE (e.g. \"Contrarian opener\", "
+        "\"Painful relatable POV\") AND give one example hook tailored to this exact brand's "
+        "audience and category in parentheses.\n"
+        "- slideStructure: string describing the 7-slide flow (e.g. "
+        "\"Hook → Status quo cost → Mechanism → Feature 1 → Feature 2 → Proof/Outcome → CTA\"). "
+        "Reference specific brand features where possible.\n"
+        "- ctaStyle: string describing the call-to-action approach AND a concrete example CTA "
+        "line aimed at this brand's audience in parentheses.\n"
         "- nicheScore: integer 0-100 representing how well the product fits current trending niches"
     )
     response = await _client.chat.completions.create(
@@ -214,11 +235,14 @@ async def generate_slides(
     strategy: dict, brand_summary: str, *, scrape_ok: bool = True
 ) -> list[dict]:
     grounding_note = (
-        "Ground every slide in the brand summary above. Do not invent product features, "
-        "ingredients, or claims that are not present in the brand summary."
+        "GROUND every slide in the brand brief. Each slide body should reference at least one "
+        "specific named feature, audience pain point, or value prop pulled from the brief. "
+        "Do not invent features, statistics, or claims not present in the brief. "
+        "Slide 1 (hook) and slide 7 (CTA) can be more general — but slides 2-6 must each cite "
+        "something concrete from the brief."
         if scrape_ok
         else (
-            "IMPORTANT: The brand summary above was generated without access to the product "
+            "IMPORTANT: The brand brief above was generated without access to the product "
             "website. Do NOT invent specific product features, ingredients, statistics, or "
             "claims (e.g., '9 out of 10 users', 'eco-friendly formula'). Keep the copy "
             "category-level, addressing the audience's likely pain point and an aspirational "

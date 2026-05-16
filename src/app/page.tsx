@@ -1,18 +1,16 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import OnboardingFlow from "@/components/OnboardingFlow";
+import Dashboard from "@/components/Dashboard";
 import type { ScanResult } from "@/types";
 
 export default function Home() {
-  const router = useRouter();
+  const [scanResult, setScanResult] = useState<ScanResult | null>(null);
 
-  return (
-    <OnboardingFlow
-      onComplete={(data: ScanResult) => {
-        localStorage.setItem("scanResult", JSON.stringify(data));
-        router.push("/content");
-      }}
-    />
-  );
+  if (!scanResult) {
+    return <OnboardingFlow onComplete={setScanResult} />;
+  }
+
+  return <Dashboard scanResult={scanResult} />;
 }

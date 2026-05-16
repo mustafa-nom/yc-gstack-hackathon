@@ -2,12 +2,12 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Loader2, ArrowRight, Zap, Download } from "lucide-react";
+import { Loader2, ArrowRight, Download } from "lucide-react";
 import type { ScanResult, StrategyData, SlideData } from "@/types"
-import { KnowledgeGraph } from "@/components/KnowledgeGraph";
+import { KnowledgeGraph, type GraphNode } from "@/components/KnowledgeGraph";
+import { AgentViewer } from "@/components/AgentViewer";
 
 const STEP_ORDER = [
-  "welcome",
   "website",
   "description",
   "tiktok",
@@ -21,10 +21,39 @@ export default function OnboardingFlow({
 }: {
   onComplete: (data: ScanResult) => void;
 }) {
-  const [step, setStep] = useState<Step>("welcome");
+  const [step, setStep] = useState<Step>("website");
   const [website, setWebsite] = useState("");
+  const [websiteChecking, setWebsiteChecking] = useState(false);
+  const [websiteError, setWebsiteError] = useState<string | null>(null);
   const [description, setDescription] = useState("");
   const [tiktok, setTiktok] = useState("");
+  const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
+
+  const validateAndAdvance = useCallback(async () => {
+    if (!website.trim()) return;
+    setWebsiteChecking(true);
+    setWebsiteError(null);
+    try {
+      const resp = await fetch("http://localhost:8000/validate-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: website.trim() }),
+      });
+      const data = await resp.json();
+      if (!data.valid) {
+        setWebsiteError("We couldn't reach that website. Check the URL and try again.");
+        return;
+      }
+      if (data.resolved && data.resolved.replace(/\/$/, "") !== website.trim().replace(/\/$/, "")) {
+        setWebsite(data.resolved);
+      }
+      setStep("description");
+    } catch {
+      setWebsiteError("Validation failed. Is the backend running?");
+    } finally {
+      setWebsiteChecking(false);
+    }
+  }, [website]);
   const [logLines, setLogLines] = useState<string[]>([]);
   const [currentTyping, setCurrentTyping] = useState("");
   const [scanDone, setScanDone] = useState(false);
@@ -151,9 +180,9 @@ export default function OnboardingFlow({
   };
 
   const stepIndex = STEP_ORDER.indexOf(step);
-  const inputSteps = STEP_ORDER.filter((s) => s !== "welcome" && s !== "scanning");
+  const inputSteps = STEP_ORDER.filter((s) => s !== "scanning");
   const inputStepNum = inputSteps.indexOf(step as (typeof inputSteps)[number]) + 1;
-  const showProgress = step !== "welcome" && step !== "scanning";
+  const showProgress = step !== "scanning";
 
   const motionProps = {
     initial: { opacity: 0, y: 20 } as const,
@@ -164,7 +193,17 @@ export default function OnboardingFlow({
 
   return (
     <div className="min-h-screen flex flex-col">
-      <KnowledgeGraph visible={step === "scanning"} />
+      <KnowledgeGraph
+        visible={step === "scanning"}
+        onNodeClick={(n) => setSelectedNode(n)}
+      />
+      {step === "scanning" && (
+        <AgentViewer
+          key={selectedNode?.id ?? "none"}
+          node={selectedNode}
+          onClose={() => setSelectedNode(null)}
+        />
+      )}
       {showProgress && (
         <div className="fixed top-0 left-0 right-0 h-[2px] bg-subtle z-50">
           <motion.div
@@ -180,31 +219,6 @@ export default function OnboardingFlow({
 
       <div className="flex-1 flex items-center justify-center px-6">
         <AnimatePresence mode="wait">
-          {step === "welcome" && (
-            <motion.div key="welcome" {...motionProps} className="text-center max-w-md">
-              <div className="inline-flex items-center gap-2.5 mb-8">
-                <Zap className="w-6 h-6 text-accent" />
-                <span className="text-xl font-semibold tracking-tight">
-                  BrainPost
-                </span>
-              </div>
-              <h1 className="text-3xl font-semibold tracking-tight mb-3">
-                Build your content strategy
-              </h1>
-              <p className="text-muted text-base mb-10 leading-relaxed">
-                Answer a few quick questions and our AI agent will analyze your
-                product and build an optimized content plan.
-              </p>
-              <button
-                onClick={() => goNext("welcome")}
-                className="inline-flex items-center gap-2 bg-accent hover:bg-accent-hover text-white px-6 py-3 rounded-lg text-sm font-medium transition-colors cursor-pointer"
-              >
-                Get Started
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </motion.div>
-          )}
-
           {step === "website" && (
             <motion.div key="website" {...motionProps} className="w-full max-w-lg">
               <p className="text-sm text-muted mb-2 font-mono">
@@ -221,16 +235,29 @@ export default function OnboardingFlow({
                 type="url"
                 placeholder="https://yourproduct.com"
                 value={website}
-                onChange={(e) => setWebsite(e.target.value)}
+                onChange={(e) => {
+                  setWebsite(e.target.value);
+                  if (websiteError) setWebsiteError(null);
+                }}
                 onKeyDown={(e) =>
-                  handleKeyDown(e, () => website.trim() && goNext("website"))
+                  handleKeyDown(e, () => !websiteChecking && validateAndAdvance())
                 }
-                className="w-full bg-transparent border-b border-card-border py-3 text-lg text-foreground placeholder:text-muted/40 focus:outline-none focus:border-accent transition-colors"
+                disabled={websiteChecking}
+                className="w-full bg-transparent border-b border-card-border py-3 text-lg text-foreground placeholder:text-muted/40 focus:outline-none focus:border-accent transition-colors disabled:opacity-60"
               />
+              {websiteError && (
+                <p className="mt-3 text-xs text-danger">{websiteError}</p>
+              )}
+              {websiteChecking && (
+                <p className="mt-3 text-xs text-muted flex items-center gap-2">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Checking the URL…
+                </p>
+              )}
               <StepNav
                 onBack={null}
-                onNext={() => website.trim() && goNext("website")}
-                nextDisabled={!website.trim()}
+                onNext={() => !websiteChecking && validateAndAdvance()}
+                nextDisabled={!website.trim() || websiteChecking}
               />
             </motion.div>
           )}

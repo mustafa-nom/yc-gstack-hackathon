@@ -8,6 +8,10 @@ type ForceGraph3DInstance = {
   nodeThreeObjectExtend: (val: boolean) => ForceGraph3DInstance
   nodeRelSize: (val: number) => ForceGraph3DInstance
   nodeOpacity: (val: number) => ForceGraph3DInstance
+  d3VelocityDecay: (val: number) => ForceGraph3DInstance
+  d3AlphaDecay: (val: number) => ForceGraph3DInstance
+  d3AlphaMin: (val: number) => ForceGraph3DInstance
+  d3ReheatSimulation: () => ForceGraph3DInstance
   linkColor: (fn: (link: GraphLink) => string) => ForceGraph3DInstance
   linkOpacity: (val: number) => ForceGraph3DInstance
   linkWidth: (fn: (link: GraphLink) => number) => ForceGraph3DInstance
@@ -43,6 +47,10 @@ interface GraphNode {
   x?: number
   y?: number
   z?: number
+  // Mutated at runtime so each frame can fade/scale the node in.
+  __spawnedAt?: number
+  __spawnMaterials?: { material: { opacity: number; transparent: boolean }; baseOpacity: number }[]
+  __threeObj?: { scale: { set: (x: number, y: number, z: number) => void } }
 }
 
 interface GraphLink {
@@ -258,41 +266,50 @@ export function KnowledgeGraph({ visible, onNodeClick }: KnowledgeGraphProps) {
       const size = isAgent ? 7.5 : node.type === "trend" ? 3.2 : 2.2
 
       const geometry = new THREE.SphereGeometry(size, isAgent ? 16 : 10, isAgent ? 12 : 8)
+      const spawnMats: { material: { opacity: number; transparent: boolean }; baseOpacity: number }[] = []
 
       if (isAgent) {
         // Wireframe + translucent fill (Slipstream "domain" treatment)
         const wireGeo = new THREE.EdgesGeometry(geometry)
         const wireMat = new THREE.LineBasicMaterial({ color: 0xc1c1c1, transparent: true, opacity: 0.72 })
         group.add(new THREE.LineSegments(wireGeo, wireMat))
+        spawnMats.push({ material: wireMat, baseOpacity: 0.72 })
 
         const fillMat = new THREE.MeshBasicMaterial({ color: 0xf0f0f0, transparent: true, opacity: 0.12 })
         group.add(new THREE.Mesh(geometry, fillMat))
+        spawnMats.push({ material: fillMat, baseOpacity: 0.12 })
       } else {
+        const coreOpacity = 0.78 + confidence * 0.14
         const coreMat = new THREE.MeshBasicMaterial({
           color: colorHex,
           transparent: true,
-          opacity: 0.78 + confidence * 0.14,
+          opacity: coreOpacity,
         })
         group.add(new THREE.Mesh(geometry, coreMat))
+        spawnMats.push({ material: coreMat, baseOpacity: coreOpacity })
       }
 
       // Inner glow
+      const innerOpacity = 0.1 + confidence * 0.04
       const innerGlowMat = new THREE.MeshBasicMaterial({
         color: 0xffffff,
         transparent: true,
-        opacity: 0.1 + confidence * 0.04,
+        opacity: innerOpacity,
         side: THREE.BackSide,
       })
       group.add(new THREE.Mesh(new THREE.SphereGeometry(size * 1.16, 12, 8), innerGlowMat))
+      spawnMats.push({ material: innerGlowMat, baseOpacity: innerOpacity })
 
       // Outer glow
+      const outerOpacity = 0.045 + confidence * 0.02
       const outerGlowMat = new THREE.MeshBasicMaterial({
         color: 0xffffff,
         transparent: true,
-        opacity: 0.045 + confidence * 0.02,
+        opacity: outerOpacity,
         side: THREE.BackSide,
       })
       group.add(new THREE.Mesh(new THREE.SphereGeometry(size * 1.62, 12, 8), outerGlowMat))
+      spawnMats.push({ material: outerGlowMat, baseOpacity: outerOpacity })
 
       // Label sprite
       const canvas = document.createElement("canvas")
@@ -306,16 +323,24 @@ export function KnowledgeGraph({ visible, onNodeClick }: KnowledgeGraphProps) {
 
       const texture = new THREE.CanvasTexture(canvas)
       texture.needsUpdate = true
+      const spriteBaseOpacity = isAgent ? 0.95 : 0.7
       const spriteMat = new THREE.SpriteMaterial({
         map: texture,
         transparent: true,
-        opacity: isAgent ? 0.95 : 0.7,
+        opacity: spriteBaseOpacity,
       })
       const sprite = new THREE.Sprite(spriteMat)
       sprite.scale.set(24, 6, 1)
       sprite.position.y = size + 4
       group.add(sprite)
+      spawnMats.push({ material: spriteMat, baseOpacity: spriteBaseOpacity })
 
+      // Start invisible + tiny if this node has been marked for a spawn animation.
+      if (node.__spawnedAt !== undefined) {
+        group.scale.set(0.001, 0.001, 0.001)
+        for (const sm of spawnMats) sm.material.opacity = 0
+      }
+      node.__spawnMaterials = spawnMats
       return group
     }
 
@@ -346,8 +371,13 @@ export function KnowledgeGraph({ visible, onNodeClick }: KnowledgeGraphProps) {
       .backgroundColor(VISUAL_CONFIG.background)
       .showNavInfo(false)
       .enableNodeDrag(false)
-      .warmupTicks(160)
-      .cooldownTicks(120)
+      .warmupTicks(40)
+      .cooldownTicks(Infinity)
+      // High damping + perpetually-warm simulation = smooth, fluid motion that
+      // never freezes. New nodes can fall into place at any time.
+      .d3VelocityDecay(0.72)
+      .d3AlphaDecay(0.018)
+      .d3AlphaMin(0)
       .graphData({ nodes: [], links: [] })
       .nodeRelSize(1)
       .nodeOpacity(0.92)
@@ -423,38 +453,43 @@ export function KnowledgeGraph({ visible, onNodeClick }: KnowledgeGraphProps) {
       // bloom optional
     }
 
-    // Camera intro — start far, ease to a wide overview
-    graph.cameraPosition({ x: 0, y: 0, z: 60 }, { x: 0, y: 0, z: 0 }, 0)
+    // Camera intro — start way out, ease to a very wide overview
+    graph.cameraPosition({ x: 0, y: 0, z: 200 }, { x: 0, y: 0, z: 0 }, 0)
     setTimeout(() => {
-      graph.cameraPosition({ x: 0, y: 120, z: 950 }, { x: 0, y: 0, z: 0 }, 4200)
+      graph.cameraPosition({ x: 0, y: 180, z: 1500 }, { x: 0, y: 0, z: 0 }, 4500)
     }, 200)
 
     graphRef.current = graph
 
-    // Progressive growth: add nodes in waves (agents one-by-one, trends paired, insights in small batches)
-    // to keep the d3 force simulation from reheating too aggressively.
+    // Progressive growth with a bezier-eased gravity drop.
+    //
+    // For each new node we:
+    //   1. Pick a target slot near an existing neighbor at link-distance.
+    //   2. Spawn the node high above that slot, pinned with fx/fy/fz.
+    //   3. Animate the pin downward over ~750ms with a cubic-bezier ease
+    //      (slow in, snappy land) using requestAnimationFrame.
+    //   4. Release the pin so d3-force can micro-adjust if needed.
     const agents = fullData.nodes.filter((n) => n.type === "agent")
     const trends = fullData.nodes.filter((n) => n.type === "trend")
     const insights = fullData.nodes.filter((n) => n.type === "insight")
-
-    type GrowthStep = { nodes: GraphNode[]; delay: number }
-    const steps: GrowthStep[] = []
-    for (const a of agents) steps.push({ nodes: [a], delay: 220 })
-    for (let i = 0; i < trends.length; i += 2) {
-      steps.push({ nodes: trends.slice(i, i + 2), delay: 180 })
-    }
-    for (let i = 0; i < insights.length; i += 4) {
-      steps.push({ nodes: insights.slice(i, i + 4), delay: 140 })
-    }
+    const nodeOrder: GraphNode[] = [...agents, ...trends, ...insights]
 
     const presentIds = new Set<string>()
-    const liveNodes: GraphNode[] = []
+    type PinnedNode = GraphNode & { fx?: number; fy?: number; fz?: number }
+    const liveNodes: PinnedNode[] = []
     const liveLinks: GraphLink[] = []
+    const liveLinkKeys = new Set<string>()
+    const pinTimers: ReturnType<typeof setTimeout>[] = []
+    const rafIds: number[] = []
     let cursor = 0
 
-    const seedPositionNearNeighbor = (n: GraphNode) => {
-      // Find an already-placed neighbor and seed the new node's coords near it
-      // so d3-force only has to nudge it slightly instead of teleport it.
+    const linkKey = (l: GraphLink) => {
+      const s = typeof l.source === "string" ? l.source : l.source.id
+      const t = typeof l.target === "string" ? l.target : l.target.id
+      return `${s}->${t}`
+    }
+
+    const findNeighbor = (n: GraphNode) => {
       for (const link of fullData.links) {
         const sId = typeof link.source === "string" ? link.source : link.source.id
         const tId = typeof link.target === "string" ? link.target : link.target.id
@@ -462,40 +497,145 @@ export function KnowledgeGraph({ visible, onNodeClick }: KnowledgeGraphProps) {
         if (sId === n.id && presentIds.has(tId)) neighborId = tId
         else if (tId === n.id && presentIds.has(sId)) neighborId = sId
         if (!neighborId) continue
-        const neighbor = liveNodes.find((ln) => ln.id === neighborId)
-        if (neighbor && neighbor.x !== undefined) {
-          const jitter = 40
-          n.x = (neighbor.x ?? 0) + (Math.random() - 0.5) * jitter
-          n.y = (neighbor.y ?? 0) + (Math.random() - 0.5) * jitter
-          n.z = (neighbor.z ?? 0) + (Math.random() - 0.5) * jitter
-          return
+        const found = liveNodes.find((ln) => ln.id === neighborId)
+        if (found && found.x !== undefined) return found
+      }
+      return null
+    }
+
+    // Cubic Bezier eval — same shape as CSS cubic-bezier(p1x, p1y, p2x, p2y).
+    // Returns y for a given x using Newton's method.
+    const bezierEase = (p1x: number, p1y: number, p2x: number, p2y: number) => {
+      const cx = 3 * p1x
+      const bx = 3 * (p2x - p1x) - cx
+      const ax = 1 - cx - bx
+      const cy = 3 * p1y
+      const by = 3 * (p2y - p1y) - cy
+      const ay = 1 - cy - by
+      const sampleX = (t: number) => ((ax * t + bx) * t + cx) * t
+      const sampleY = (t: number) => ((ay * t + by) * t + cy) * t
+      const sampleDerivX = (t: number) => (3 * ax * t + 2 * bx) * t + cx
+      return (x: number) => {
+        let t = x
+        for (let i = 0; i < 8; i++) {
+          const xEst = sampleX(t) - x
+          const d = sampleDerivX(t)
+          if (Math.abs(xEst) < 1e-6 || d === 0) break
+          t -= xEst / d
+        }
+        return sampleY(t)
+      }
+    }
+    // Position curve — smooth ease-out, like a feather settling.
+    const easeDrop = bezierEase(0.22, 0.61, 0.36, 1.0)
+    // Scale/fade curve — soft start, gentle finish, slight overshoot at the end.
+    const easeAppear = bezierEase(0.34, 0.0, 0.18, 1.08)
+
+    const dropInDelay = (n: GraphNode) =>
+      n.type === "agent" ? 320 : n.type === "trend" ? 240 : 180
+
+    const dropDuration = (n: GraphNode) =>
+      n.type === "agent" ? 950 : n.type === "trend" ? 800 : 650
+
+    const animateDrop = (
+      node: PinnedNode,
+      from: { x: number; y: number; z: number },
+      to: { x: number; y: number; z: number },
+      duration: number,
+    ) => {
+      const start = performance.now()
+      const tick = (now: number) => {
+        const elapsed = now - start
+        const t = Math.min(1, elapsed / duration)
+        const e = easeDrop(t)
+        node.fx = from.x + (to.x - from.x) * e
+        node.fy = from.y + (to.y - from.y) * e
+        node.fz = from.z + (to.z - from.z) * e
+
+        // Scale + opacity fade-in driven by a separate eased curve so the body
+        // of the node "blooms" in alongside the fall, with a soft settle.
+        const appear = easeAppear(t)
+        const s = Math.max(0.001, Math.min(1, appear))
+        const obj = (node as GraphNode).__threeObj
+        if (obj) obj.scale.set(s, s, s)
+        const mats = (node as GraphNode).__spawnMaterials
+        if (mats) {
+          const fade = Math.max(0, Math.min(1, appear))
+          for (const sm of mats) sm.material.opacity = sm.baseOpacity * fade
+        }
+
+        if (t < 1) {
+          rafIds.push(requestAnimationFrame(tick))
+        } else {
+          // Snap to clean final values then release pin so d3 can micro-adjust.
+          if (obj) obj.scale.set(1, 1, 1)
+          if (mats) for (const sm of mats) sm.material.opacity = sm.baseOpacity
+          const release = setTimeout(() => {
+            node.fx = undefined
+            node.fy = undefined
+            node.fz = undefined
+          }, 80)
+          pinTimers.push(release)
         }
       }
+      rafIds.push(requestAnimationFrame(tick))
     }
 
     const advance = () => {
-      if (cursor >= steps.length) {
+      if (cursor >= nodeOrder.length) {
         growthTimerRef.current = null
         return
       }
-      const step = steps[cursor++]
-      for (const n of step.nodes) {
-        seedPositionNearNeighbor(n)
-        presentIds.add(n.id)
-        liveNodes.push(n)
+      const node = nodeOrder[cursor++] as PinnedNode
+      const neighbor = findNeighbor(node)
+
+      const dropHeight = node.type === "agent" ? 520 : node.type === "trend" ? 360 : 240
+      const linkDist = node.type === "insight" ? 95 : 130
+
+      // Compute the landing target as neighbor + random radial offset at link
+      // distance, so the node lands at roughly its layout slot.
+      const target = { x: 0, y: 0, z: 0 }
+      if (neighbor) {
+        const angle = Math.random() * Math.PI * 2
+        const phi = (Math.random() - 0.5) * Math.PI * 0.6
+        target.x = (neighbor.x ?? 0) + Math.cos(angle) * Math.cos(phi) * linkDist
+        target.z = (neighbor.z ?? 0) + Math.sin(angle) * Math.cos(phi) * linkDist
+        target.y = (neighbor.y ?? 0) + Math.sin(phi) * linkDist
       }
+
+      const from = { x: target.x, y: target.y + dropHeight, z: target.z }
+
+      // Seed coords + pin at the top of the drop.
+      node.x = from.x
+      node.y = from.y
+      node.z = from.z
+      node.fx = from.x
+      node.fy = from.y
+      node.fz = from.z
+      // Mark for spawn animation — buildNodeObject reads this flag.
+      ;(node as GraphNode).__spawnedAt = performance.now()
+
+      presentIds.add(node.id)
+      liveNodes.push(node)
+
       for (const link of fullData.links) {
         const sId = typeof link.source === "string" ? link.source : link.source.id
         const tId = typeof link.target === "string" ? link.target : link.target.id
-        if (presentIds.has(sId) && presentIds.has(tId) && !liveLinks.includes(link)) {
-          liveLinks.push(link)
-        }
+        if (!presentIds.has(sId) || !presentIds.has(tId)) continue
+        const key = linkKey(link)
+        if (liveLinkKeys.has(key)) continue
+        liveLinkKeys.add(key)
+        liveLinks.push(link)
       }
+
       graph.graphData({ nodes: [...liveNodes], links: [...liveLinks] })
-      growthTimerRef.current = setTimeout(advance, step.delay)
+
+      animateDrop(node, from, target, dropDuration(node))
+
+      growthTimerRef.current = setTimeout(advance, dropInDelay(node))
     }
 
-    const growthStart = setTimeout(advance, 1400)
+    const growthStart = setTimeout(advance, 1500)
 
     const handleResize = () => {
       if (graphRef.current) {
@@ -511,6 +651,8 @@ export function KnowledgeGraph({ visible, onNodeClick }: KnowledgeGraphProps) {
         clearTimeout(growthTimerRef.current)
         growthTimerRef.current = null
       }
+      for (const t of pinTimers) clearTimeout(t)
+      for (const id of rafIds) cancelAnimationFrame(id)
     }
   }, [onNodeClick])
 
