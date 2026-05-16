@@ -12,186 +12,81 @@ interface Post {
   id: string;
   title: string;
   status: Status;
-  caption: string;
+  thumbnail?: string;
+  caption?: string;
   stats?: Stats;
   scheduledTime?: string;
 }
 
-const DUMMY: Record<string, Post[]> = {
-  "2026-05-10": [
-    {
-      id: "a1", title: "5 Things That Fixed My Morning", status: "done",
-      caption: "Your morning sets the tone for everything. Here are 5 small changes that actually stuck for me — no 5am wake-ups required.\n\n#morningroutine #productivity #selfimprovement #habitstacking #dailyroutine",
-      stats: { views: 84200, likes: 3100, comments: 218, shares: 940 },
-    },
-    {
-      id: "a2", title: "Stop Doing These 3 Exercises", status: "done",
-      caption: "Not every popular exercise is worth your time. These 3 are hurting more people than they're helping — and there are better alternatives.\n\n#fitness #gymtips #workout #liftingadvice #gains",
-      stats: { views: 61400, likes: 2400, comments: 305, shares: 720 },
-    },
-    {
-      id: "a3", title: "Why I Quit Multitasking", status: "done",
-      caption: "Multitasking feels productive. It isn't. Here's what changed when I started doing one thing at a time.\n\n#focus #deepwork #productivity #mentalhealth #mindset",
-      stats: { views: 47800, likes: 1900, comments: 143, shares: 510 },
-    },
-  ],
-  "2026-05-11": [
-    {
-      id: "b1", title: "The Workout Split Nobody Talks About", status: "done",
-      caption: "Everyone's doing PPL or bro splits. This split gave me better results in less time — and it fits a real schedule.\n\n#workoutsplit #gymroutine #fitness #musclebuilding #liftinglife",
-      stats: { views: 112000, likes: 5200, comments: 487, shares: 1840 },
-    },
-    {
-      id: "b2", title: "How I Cut My Screen Time in Half", status: "done",
-      caption: "I was at 7 hours a day. Now I'm under 3. These are the only changes that actually made a difference.\n\n#screentime #digitalwellness #productivity #phonefree #mindfultech",
-      stats: { views: 53600, likes: 2100, comments: 196, shares: 630 },
-    },
-  ],
-  "2026-05-12": [
-    {
-      id: "c1", title: "Best Pre-Workout Meals for Lifters", status: "done",
-      caption: "What you eat before training matters more than most people think. These meals give me consistent energy without the crash.\n\n#preworkout #gymnutrition #mealprep #fitnessfood #liftingdiet",
-      stats: { views: 39200, likes: 1600, comments: 124, shares: 410 },
-    },
-    {
-      id: "c2", title: "3 Habits I Added to My Night Routine", status: "done",
-      caption: "My mornings got better when I fixed my nights. These 3 habits take under 20 minutes and actually work.\n\n#nightroutine #sleephygiene #habitbuilding #wellness #selfcare",
-      stats: { views: 71500, likes: 3300, comments: 261, shares: 890 },
-    },
-    {
-      id: "c3", title: "What I Eat in a Day to Stay Lean", status: "done",
-      caption: "No tracking apps. No calorie counting. Just a simple approach to eating that keeps me consistent year-round.\n\n#whatieatinaday #leanlifestyle #intuitiveeating #fitnessdiet #bodyrecomp",
-      stats: { views: 98300, likes: 4700, comments: 392, shares: 1520 },
-    },
-  ],
-  "2026-05-13": [
-    {
-      id: "d1", title: "I Tracked My Sleep for 30 Days — Here's What Happened", status: "done",
-      caption: "I wore a tracker every night for a month. The data surprised me — especially what was wrecking my deep sleep.\n\n#sleeptracking #sleepscience #recoverytips #whoop #oura",
-      stats: { views: 143000, likes: 6800, comments: 714, shares: 2300 },
-    },
-    {
-      id: "d2", title: "Apps That Actually Helped My Focus", status: "done",
-      caption: "I've tried every focus app out there. These are the only ones I still use after 6 months.\n\n#focusapps #productivity #adhd #deepwork #workfromhome",
-      stats: { views: 66700, likes: 2900, comments: 338, shares: 780 },
-    },
-  ],
-  "2026-05-14": [
-    {
-      id: "e1", title: "Why Your Gym Routine Isn't Working", status: "done",
-      caption: "Most people aren't failing because of effort. They're failing because of these 3 mistakes that nobody talks about.\n\n#gymfails #fitnessadvice #musclegrowth #workoutmistakes #gains",
-      stats: { views: 187000, likes: 9100, comments: 832, shares: 3100 },
-    },
-    {
-      id: "e2", title: "5 Lifts to Build a Bigger Back", status: "done",
-      caption: "A wide back changes your entire physique. These 5 movements hit every angle and are worth adding to your pull day.\n\n#backworkout #pullday #musclebuilding #gymbro #backgains",
-      stats: { views: 94500, likes: 4300, comments: 402, shares: 1270 },
-    },
-    {
-      id: "e3", title: "Things I Stopped Buying to Save Money", status: "done",
-      caption: "Cut these and I saved $400/month without feeling like I was sacrificing anything. Real talk.\n\n#moneysaving #budgeting #personalfinance #frugalliving #savemoney",
-      stats: { views: 51200, likes: 2000, comments: 187, shares: 560 },
-    },
-  ],
-  "2026-05-15": [
-    {
-      id: "f1", title: "The Morning Routine I Swear By", status: "done",
-      caption: "I've tested dozens of morning routines. This one is the only one I've kept for over a year — and it takes less than 45 minutes.\n\n#morningroutine #morninghabits #selfimprovement #5amclub #dailyhabits",
-      stats: { views: 77400, likes: 3500, comments: 289, shares: 1010 },
-    },
-    {
-      id: "f2", title: "How I Meal Prep for the Week in 2 Hours", status: "done",
-      caption: "Sunday meal prep doesn't have to take all day. Here's my exact system — from grocery list to fridge in under 2 hours.\n\n#mealprep #mealprepping #healthyeating #fitnessmeal #sundaymealprep",
-      stats: { views: 88900, likes: 4100, comments: 367, shares: 1340 },
-    },
-  ],
-  "2026-05-16": [
-    {
-      id: "g1", title: "Supplements Worth Buying in 2026", status: "done",
-      caption: "The supplement industry is full of noise. These are the only ones with real evidence behind them — and I've tried everything.\n\n#supplements #creatine #proteinpowder #fitnesstips #evidencebased",
-      stats: { views: 34100, likes: 1500, comments: 98, shares: 320 },
-    },
-    {
-      id: "g2", title: "5 Signs You're Overtraining", status: "scheduled",
-      caption: "More isn't always better. If you're hitting the gym 6 days a week and your progress has stalled, this might be why.\n\n#overtraining #recoverydays #fitnessadvice #restday #gymlife",
-      scheduledTime: "6:00 PM",
-    },
-  ],
+// Real posts from @tylerbrooks.lifts
+const REAL: Post[] = [
+  { id: "7640388791521299726", status: "done", title: "if you are over 6 feet and you have been lifting for a while you have probably been told you are built for endurance not strength", thumbnail: "/thumbs/7640388791521299726.jpeg", caption: "#lifting #fitness #strengthtraining #talllifters #gymadvice", stats: { views: 878, likes: 26, comments: 2, shares: 1 } },
+  { id: "7639791124252544286", status: "done", title: "most lifters treat deload weeks like a sign of weakness like if you take a lighter week you are going soft", thumbnail: "/thumbs/7639791124252544286.jpeg", caption: "#deload #recovery #gymlife #liftingadvice #strengthtraining", stats: { views: 903, likes: 22, comments: 2, shares: 3 } },
+  { id: "7639655291029622029", status: "done", title: "becoming a dad does not mean your physique has to disappear but pretty much every piece of advice out there assumes you still have the same schedule you did at 24", thumbnail: "/thumbs/7639655291029622029.jpeg", caption: "#dadfitness #fitdad #gymlife #busydad #physique", stats: { views: 12500, likes: 102, comments: 2, shares: 0 } },
+  { id: "7639253997185961247", status: "done", title: "the transition from college athlete to regular adult is where most guys lose the gym for good", thumbnail: "/thumbs/7639253997185961247.jpeg", caption: "#collegeathlete #adultfitness #gymlife #fitness #transition", stats: { views: 942, likes: 22, comments: 0, shares: 0 } },
+  { id: "7638927125596097823", status: "done", title: "the guys who look like they live in the gym a lot of them are there four days a week", thumbnail: "/thumbs/7638927125596097823.jpeg", caption: "#gymefficiency #workoutsplit #fitnesstips #gymlife #4dayworkout", stats: { views: 816, likes: 25, comments: 0, shares: 0 } },
+  { id: "7638506969095081247", status: "done", title: "most lifters treat cardio like it is the enemy of gains and if you are running 5 miles a day on top of heavy lifting that might be true", thumbnail: "/thumbs/7638506969095081247.jpeg", caption: "#cardio #gains #lifting #fitnesstips #musclebuilding", stats: { views: 430, likes: 10, comments: 0, shares: 0 } },
+  { id: "7636527260677311758", status: "done", title: "the gym in college feels like the one thing you can control classes stress social stuff the gym is yours", thumbnail: "/thumbs/7636527260677311758.jpeg", caption: "#collegefitness #gymlife #studentathlete #mentalhealth #lifting", stats: { views: 1160, likes: 40, comments: 0, shares: 1 } },
+  { id: "7636240073238859038", status: "done", title: "the fitness internet will have you believe that anything less than a perfect program perfectly executed is a waste of time", thumbnail: "/thumbs/7636240073238859038.jpeg", caption: "#fitnessmyths #gym #liftingadvice #fitness #programdesign", stats: { views: 46, likes: 0, comments: 0, shares: 0 } },
+  { id: "7635855429465017631", status: "done", title: "most guys hit a wall and their first instinct is to add more volume more sets more days more exercises", thumbnail: "/thumbs/7635855429465017631.jpeg", caption: "#plateau #training #overtraining #gymadvice #volume", stats: { views: 513, likes: 23, comments: 0, shares: 0 } },
+  { id: "7635505161065991455", status: "done", title: "Most guys with day jobs and partners and obligations think they need to overhaul their entire life to get back in shape", thumbnail: "/thumbs/7635505161065991455.jpeg", caption: "#busylifestyle #gymlife #fitness #worklifebalance #dadlife", stats: { views: 435, likes: 15, comments: 0, shares: 0 } },
+  { id: "7635138094315932958", status: "done", title: "Some weeks the program holds. Some weeks Tuesday eats your squat session alive", thumbnail: "/thumbs/7635138094315932958.jpeg", caption: "#gymlife #consistency #liftinglife #squats #training", stats: { views: 355, likes: 7, comments: 0, shares: 0 } },
+  { id: "7634628799740644622", status: "done", title: "Cutting is where most lifters watch a year of gains slip in eight weeks", thumbnail: "/thumbs/7634628799740644622.jpeg", caption: "#cutting #fatloss #musclemass #diet #bodyrecomp", stats: { views: 446, likes: 9, comments: 1, shares: 0 } },
+  { id: "7634264872578059551", status: "done", title: "Ten years in the gym and the things I wish I had known on day one are not what you would expect", thumbnail: "/thumbs/7634264872578059551.jpeg", caption: "#gymwisdom #liftingadvice #10years #fitness #gymlife", stats: { views: 317, likes: 5, comments: 0, shares: 0 } },
+  { id: "7633826380903370015", status: "done", title: "Shift work breaks the textbook training advice. You cannot eat at the same time every day sleep at the same time every night or train on a fixed schedule", thumbnail: "/thumbs/7633826380903370015.jpeg", caption: "#shiftwork #gymlife #fitness #nightshift #workerlife", stats: { views: 351, likes: 15, comments: 0, shares: 0 } },
+];
+
+// Map video ID → date (UTC)
+const ID_TO_DATE: Record<string, string> = {
+  "7640388791521299726": "2026-05-16",
+  "7639791124252544286": "2026-05-14",
+  "7639655291029622029": "2026-05-14",
+  "7639253997185961247": "2026-05-13",
+  "7638927125596097823": "2026-05-12",
+  "7638506969095081247": "2026-05-11",
+  "7636527260677311758": "2026-05-05",
+  "7636240073238859038": "2026-05-05",
+  "7635855429465017631": "2026-05-04",
+  "7635505161065991455": "2026-05-03",
+  "7635138094315932958": "2026-05-02",
+  "7634628799740644622": "2026-04-30",
+  "7634264872578059551": "2026-04-29",
+  "7633826380903370015": "2026-04-28",
+};
+
+// Future scheduled posts (dummy)
+const SCHEDULED: Record<string, Post[]> = {
   "2026-05-17": [
-    {
-      id: "h1", title: "The Protein Myth Most People Believe", status: "scheduled",
-      caption: "You don't need 1g per pound of bodyweight. Here's what the research actually says — and how much you actually need.\n\n#protein #nutritionscience #musclebuilding #dietadvice #fitnessmyths",
-      scheduledTime: "12:00 PM",
-    },
-    {
-      id: "h2", title: "How to Stay Consistent When Life Gets Busy", status: "scheduled",
-      caption: "Consistency isn't about motivation. It's about systems. Here's how I've stayed on track through busy seasons for 3 years.\n\n#consistency #habitbuilding #fitnessjourney #gymlife #discipline",
-      scheduledTime: "7:00 PM",
-    },
-  ],
-  "2026-05-18": [
-    {
-      id: "i1", title: "3 Compound Lifts You Should Never Skip", status: "scheduled",
-      caption: "If you only have time for 3 movements, make them these. They hit the most muscle, burn the most calories, and build real strength.\n\n#compoundlifts #strengthtraining #squat #deadlift #benchpress",
-      scheduledTime: "3:00 PM",
-    },
+    { id: "s1", status: "scheduled", title: "The protein myth most lifters still believe in 2026", scheduledTime: "12:00 PM" },
+    { id: "s2", status: "scheduled", title: "How to stay consistent when life gets completely in the way", scheduledTime: "7:00 PM" },
   ],
   "2026-05-19": [
-    {
-      id: "j1", title: "What I Wish I Knew Before Cutting", status: "scheduled",
-      caption: "My first cut was a disaster. Here's everything I'd tell myself before starting — so you don't make the same mistakes.\n\n#cuttingseason #fatloss #bodyrecomp #gymjourney #fitnessadvice",
-      scheduledTime: "12:00 PM",
-    },
-    {
-      id: "j2", title: "The Lazy Person's Guide to Meal Prep", status: "scheduled",
-      caption: "No complicated recipes. No hours in the kitchen. This is how I eat well every week with minimal effort.\n\n#easymealprep #lazymealprep #healthyeating #simplerecipes #mealplanning",
-      scheduledTime: "6:30 PM",
-    },
+    { id: "s3", status: "scheduled", title: "3 compound lifts you should never skip no matter how busy you are", scheduledTime: "12:00 PM" },
   ],
   "2026-05-20": [
-    {
-      id: "k1", title: "How to Build Muscle on a Budget", status: "scheduled",
-      caption: "You don't need expensive supplements or a premium gym. Here's how to maximize gains on $50/week or less.\n\n#budgetfitness #musclebuilding #frugalfitness #gymtips #gains",
-      scheduledTime: "11:00 AM",
-    },
-    {
-      id: "k2", title: "I Replaced Coffee with This for 2 Weeks", status: "scheduled",
-      caption: "I was skeptical. Two weeks in, my focus was sharper and I wasn't crashing at 2pm. Here's what I switched to.\n\n#coffeealternative #energydrink #focus #nootropics #morningroutine",
-      scheduledTime: "8:00 AM",
-    },
+    { id: "s4", status: "scheduled", title: "What I wish I knew before my first cut", scheduledTime: "6:30 PM" },
   ],
   "2026-05-21": [
-    {
-      id: "l1", title: "The Mindset Shift That Changed My Training", status: "scheduled",
-      caption: "I used to train for aesthetics. Shifting to performance changed everything — my physique actually got better as a byproduct.\n\n#fitnessmindset #athletictraining #strengthgoals #gymphilosophy #performancefirst",
-      scheduledTime: "5:00 PM",
-    },
-    {
-      id: "l2", title: "Why Rest Days Are Just as Important", status: "scheduled",
-      caption: "Growth doesn't happen in the gym. It happens when you recover. Here's why your rest days are actually doing the heavy lifting.\n\n#restday #musclerecovery #activerecovery #sleepandgains #gymscience",
-      scheduledTime: "7:30 PM",
-    },
-  ],
-  "2026-05-22": [
-    {
-      id: "m1", title: "5 Things Every Lifter Needs in Their Bag", status: "scheduled",
-      caption: "After 4 years in the gym, these are the only things that actually earn their spot in my gym bag every single day.\n\n#gymbag #gymessentials #liftingaccessories #gymgear #workoutgear",
-      scheduledTime: "4:00 PM",
-    },
-  ],
-  "2026-05-23": [
-    {
-      id: "n1", title: "My Full Body Routine for Busy Weeks", status: "scheduled",
-      caption: "When life gets in the way, I drop to 3 days and run this full-body split. Never lost gains doing it.\n\n#fullbodyworkout #3dayworkout #busyschedule #gymroutine #efficienttraining",
-      scheduledTime: "12:00 PM",
-    },
-    {
-      id: "n2", title: "How I Lost Fat Without Losing Strength", status: "scheduled",
-      caption: "Most cuts come with strength loss. Mine didn't. Here's the exact approach I used to keep every lift going up while dropping weight.\n\n#fatlosswithoutmuscleloss #cuttingphase #strengthtraining #bodyrecomp #liftingwhilecutting",
-      scheduledTime: "6:00 PM",
-    },
+    { id: "s5", status: "scheduled", title: "The mindset shift that actually changed how I train", scheduledTime: "5:00 PM" },
   ],
 };
+
+// Build DUMMY from real posts + scheduled
+function buildDummy(): Record<string, Post[]> {
+  const map: Record<string, Post[]> = {};
+  for (const post of REAL) {
+    const date = ID_TO_DATE[post.id];
+    if (!date) continue;
+    if (!map[date]) map[date] = [];
+    map[date].push(post);
+  }
+  for (const [date, posts] of Object.entries(SCHEDULED)) {
+    map[date] = posts;
+  }
+  return map;
+}
+
+const DUMMY = buildDummy();
 
 function fmt(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -208,7 +103,10 @@ function getMonday(date: Date): Date {
 }
 
 function toKey(date: Date): string {
-  return date.toISOString().slice(0, 10);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 function isToday(date: Date): boolean {
@@ -259,12 +157,10 @@ export default function ContentCalendar() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Schedule</h1>
-          <p className="text-sm text-muted mt-1">Your content calendar for the week.</p>
+          <p className="text-sm text-muted mt-1">Content from @tylerbrooks.lifts</p>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-sm text-muted tabular-nums">
-            {startLabel} — {endLabel}
-          </span>
+          <span className="text-sm text-muted tabular-nums">{startLabel} — {endLabel}</span>
           <div className="flex items-center gap-0.5">
             <button onClick={prevWeek} className="p-1.5 rounded-md text-muted hover:text-foreground hover:bg-subtle transition-colors cursor-pointer">
               <ChevronLeft className="w-4 h-4" />
@@ -304,22 +200,33 @@ export default function ContentCalendar() {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.3, delay: i * 0.03 + j * 0.05, ease: [0.16, 1, 0.3, 1] }}
                       onClick={() => setSelected(post)}
-                      className={`rounded-lg border p-2.5 cursor-pointer select-none transition-colors ${
+                      className={`rounded-lg border overflow-hidden cursor-pointer select-none transition-colors ${
                         selected?.id === post.id
-                          ? "border-accent/60 bg-accent/5"
+                          ? "border-accent/60"
                           : post.status === "done"
-                            ? "bg-success/5 border-success/20 hover:border-success/40"
-                            : "bg-card-bg border-card-border hover:border-card-border/60"
+                            ? "border-success/20 hover:border-success/40"
+                            : "border-card-border hover:border-card-border/60"
                       } ${isPast && post.status === "scheduled" ? "opacity-50" : ""}`}
                     >
-                      <p className="text-[11px] font-medium leading-snug line-clamp-2 mb-2 text-foreground/90">
-                        {post.title}
-                      </p>
-                      <div className="flex items-center gap-1.5">
-                        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${post.status === "done" ? "bg-success" : "bg-accent"}`} />
-                        <span className={`text-[10px] font-medium ${post.status === "done" ? "text-success" : "text-accent"}`}>
-                          {post.status === "done" ? "Done" : "Scheduled"}
-                        </span>
+                      {/* Thumbnail */}
+                      {post.thumbnail && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={post.thumbnail}
+                          alt=""
+                          className="w-full aspect-[9/12] object-cover"
+                        />
+                      )}
+                      <div className={`p-2 ${post.status === "done" ? "bg-success/5" : "bg-card-bg"}`}>
+                        <p className="text-[10px] font-medium leading-snug line-clamp-2 mb-1.5 text-foreground/80">
+                          {post.title}
+                        </p>
+                        <div className="flex items-center gap-1.5">
+                          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${post.status === "done" ? "bg-success" : "bg-accent"}`} />
+                          <span className={`text-[10px] font-medium ${post.status === "done" ? "text-success" : "text-accent"}`}>
+                            {post.status === "done" ? "Done" : "Scheduled"}
+                          </span>
+                        </div>
                       </div>
                     </motion.div>
                   ))}
@@ -340,7 +247,6 @@ export default function ContentCalendar() {
       <AnimatePresence>
         {selected && (
           <>
-            {/* Backdrop */}
             <motion.div
               key="backdrop"
               initial={{ opacity: 0 }}
@@ -350,8 +256,6 @@ export default function ContentCalendar() {
               onClick={() => setSelected(null)}
               className="fixed inset-0 z-40"
             />
-
-            {/* Sidebar */}
             <motion.aside
               key="sidebar"
               initial={{ opacity: 0, x: 32 }}
@@ -368,57 +272,67 @@ export default function ContentCalendar() {
                     {selected.status === "done" ? "Done" : "Scheduled"}
                   </span>
                 </div>
-                <button
-                  onClick={() => setSelected(null)}
-                  className="p-1 rounded-md text-muted hover:text-foreground hover:bg-subtle transition-colors cursor-pointer"
-                >
+                <button onClick={() => setSelected(null)} className="p-1 rounded-md text-muted hover:text-foreground hover:bg-subtle transition-colors cursor-pointer">
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              {/* Sidebar body */}
-              <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6">
-                {/* Title */}
-                <div>
-                  <p className="text-[10px] text-muted/60 uppercase tracking-widest mb-2">Title</p>
-                  <p className="text-sm font-semibold leading-snug text-foreground">{selected.title}</p>
-                </div>
+              <div className="flex-1 overflow-y-auto">
+                {/* Thumbnail */}
+                {selected.thumbnail && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={selected.thumbnail}
+                    alt=""
+                    className="w-full aspect-[9/14] object-cover"
+                  />
+                )}
 
-                {/* Stats (done only) */}
-                {selected.status === "done" && selected.stats && (
+                <div className="px-5 py-5 space-y-5">
+                  {/* Title */}
                   <div>
-                    <p className="text-[10px] text-muted/60 uppercase tracking-widest mb-3">Performance</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {[
-                        { icon: Eye, label: "Views", value: selected.stats.views },
-                        { icon: Heart, label: "Likes", value: selected.stats.likes },
-                        { icon: MessageCircle, label: "Comments", value: selected.stats.comments },
-                        { icon: Share2, label: "Shares", value: selected.stats.shares },
-                      ].map(({ icon: Icon, label, value }) => (
-                        <div key={label} className="bg-card-bg border border-card-border rounded-lg p-3">
-                          <div className="flex items-center gap-1.5 mb-1">
-                            <Icon className="w-3 h-3 text-muted/60" />
-                            <span className="text-[10px] text-muted/60">{label}</span>
+                    <p className="text-[10px] text-muted/60 uppercase tracking-widest mb-2">Title</p>
+                    <p className="text-sm font-semibold leading-snug text-foreground">{selected.title}</p>
+                  </div>
+
+                  {/* Stats */}
+                  {selected.status === "done" && selected.stats && (
+                    <div>
+                      <p className="text-[10px] text-muted/60 uppercase tracking-widest mb-3">Performance</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          { icon: Eye, label: "Views", value: selected.stats.views },
+                          { icon: Heart, label: "Likes", value: selected.stats.likes },
+                          { icon: MessageCircle, label: "Comments", value: selected.stats.comments },
+                          { icon: Share2, label: "Shares", value: selected.stats.shares },
+                        ].map(({ icon: Icon, label, value }) => (
+                          <div key={label} className="bg-card-bg border border-card-border rounded-lg p-3">
+                            <div className="flex items-center gap-1.5 mb-1">
+                              <Icon className="w-3 h-3 text-muted/60" />
+                              <span className="text-[10px] text-muted/60">{label}</span>
+                            </div>
+                            <p className="text-sm font-semibold tabular-nums">{fmt(value)}</p>
                           </div>
-                          <p className="text-sm font-semibold tabular-nums">{fmt(value)}</p>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* Scheduled time */}
-                {selected.status === "scheduled" && selected.scheduledTime && (
-                  <div>
-                    <p className="text-[10px] text-muted/60 uppercase tracking-widest mb-2">Scheduled time</p>
-                    <p className="text-sm font-medium text-accent">{selected.scheduledTime}</p>
-                  </div>
-                )}
+                  {/* Scheduled time */}
+                  {selected.status === "scheduled" && selected.scheduledTime && (
+                    <div>
+                      <p className="text-[10px] text-muted/60 uppercase tracking-widest mb-2">Scheduled time</p>
+                      <p className="text-sm font-medium text-accent">{selected.scheduledTime}</p>
+                    </div>
+                  )}
 
-                {/* Caption */}
-                <div>
-                  <p className="text-[10px] text-muted/60 uppercase tracking-widest mb-2">Caption</p>
-                  <p className="text-xs text-foreground/70 leading-relaxed whitespace-pre-line">{selected.caption}</p>
+                  {/* Caption */}
+                  {selected.caption && (
+                    <div>
+                      <p className="text-[10px] text-muted/60 uppercase tracking-widest mb-2">Caption</p>
+                      <p className="text-xs text-foreground/70 leading-relaxed whitespace-pre-line">{selected.caption}</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.aside>
