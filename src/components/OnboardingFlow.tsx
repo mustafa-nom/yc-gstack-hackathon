@@ -167,11 +167,7 @@ export default function OnboardingFlow() {
 
   return (
     <div className="min-h-screen flex flex-col relative">
-      {step === "scanning" && runId && (
-        <div className="fixed inset-0 z-0 pointer-events-none">
-          <LiveGraph runId={runId} />
-        </div>
-      )}
+      {step === "scanning" && runId && <LiveGraph runId={runId} />}
       {showProgress && (
         <div className="fixed top-0 left-0 right-0 h-[2px] bg-subtle z-50">
           <motion.div
