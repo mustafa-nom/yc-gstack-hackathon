@@ -31,6 +31,7 @@ def main():
     parser.add_argument("--count", "-n", type=int, help="Number of topics")
     parser.add_argument("--output-dir", "-o", default="output", help="Root output directory")
     parser.add_argument("--skip-images", action="store_true", help="Skip image generation (reuse existing)")
+    parser.add_argument("--reference", metavar="URL", help="TikTok carousel URL to use as style reference")
     parser.add_argument("topics", nargs="*", help="Optional topic seed words")
     args = parser.parse_args()
 
@@ -43,6 +44,8 @@ def main():
     content_cmd = ["python", "generate_content.py", "--persona", args.persona, "--output-dir", str(out)]
     if args.count:
         content_cmd += ["--count", str(args.count)]
+    if args.reference:
+        content_cmd += ["--reference", args.reference]
     content_cmd += args.topics
     run(content_cmd, "Step 1/3 — Generating slide content (Claude)")
 
