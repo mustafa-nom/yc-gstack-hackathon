@@ -1,9 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Layers, Loader2, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import type { StrategyData } from "@/types";
+import {
+  ensureCarousel,
+  readCachedCarousel,
+  prewarmCarousel,
+  clearCachedCarousel,
+} from "@/lib/carousel-prefetch";
 
 type GenerateState = "idle" | "generating" | "done" | "error";
 
@@ -21,46 +27,39 @@ export default function ContentStudio({
   const [activeSlide, setActiveSlide] = useState(0);
   const [count, setCount] = useState(1);
 
-  const generateImages = async () => {
+  useEffect(() => {
+    if (!readCachedCarousel(count)) {
+      prewarmCarousel({ count, persona: persona ?? {} });
+    }
+  }, [count, persona]);
+
+  const generateImages = async ({ force }: { force?: boolean } = {}) => {
+    if (!force) {
+      const cached = readCachedCarousel(count);
+      if (cached) {
+        setImageUrls(cached.imageUrls);
+        setGenLogs(cached.logs);
+        setActiveSlide(0);
+        setGenState("done");
+        return;
+      }
+    } else {
+      clearCachedCarousel(count);
+    }
+
     setGenState("generating");
     setGenLogs([]);
     setImageUrls([]);
 
-    const response = await fetch("http://localhost:8000/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ persona: persona ?? {}, count, skip_images: false }),
-    });
-
-    if (!response.body) { setGenState("error"); return; }
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const parts = buffer.split("\n\n");
-      buffer = parts.pop() ?? "";
-      for (const part of parts) {
-        const line = part.trim();
-        if (!line.startsWith("data:")) continue;
-        try {
-          const event = JSON.parse(line.slice(5).trim());
-          if (event.type === "log" && event.message?.trim()) {
-            setGenLogs((prev) => [...prev, event.message]);
-          } else if (event.type === "done") {
-            setImageUrls(event.imageUrls ?? []);
-            setActiveSlide(0);
-            setGenState("done");
-          } else if (event.type === "error") {
-            setGenState("error");
-          }
-        } catch { continue; }
-      }
+    const result = await ensureCarousel({ count, persona: persona ?? {} });
+    if (!result) {
+      setGenState("error");
+      return;
     }
+    setImageUrls(result.imageUrls);
+    setGenLogs(result.logs);
+    setActiveSlide(0);
+    setGenState("done");
   };
 
   return (
@@ -99,7 +98,7 @@ export default function ContentStudio({
           <h2 className="text-xs text-muted uppercase tracking-widest font-medium">Carousel</h2>
           {genState === "done" && (
             <button
-              onClick={generateImages}
+              onClick={() => generateImages({ force: true })}
               className="inline-flex items-center gap-1.5 text-xs text-muted hover:text-foreground transition-colors cursor-pointer"
             >
               <RefreshCw className="w-3 h-3" /> Regenerate
@@ -137,7 +136,7 @@ export default function ContentStudio({
                 ))}
               </div>
               <button
-                onClick={generateImages}
+                onClick={() => generateImages()}
                 className="inline-flex items-center gap-2 bg-accent hover:bg-accent-hover text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer"
               >
                 <Layers className="w-3.5 h-3.5" /> Generate {count === 1 ? "Carousel" : `${count} Carousels`}
@@ -233,7 +232,7 @@ export default function ContentStudio({
             >
               <p className="text-sm text-red-400">Generation failed. Check the backend logs.</p>
               <button
-                onClick={generateImages}
+                onClick={() => generateImages()}
                 className="text-sm text-muted hover:text-foreground transition-colors cursor-pointer"
               >
                 Try again

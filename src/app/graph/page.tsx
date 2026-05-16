@@ -7,6 +7,7 @@ import type { GraphNode } from "@/lib/graph-bus";
 import { DossierPanel } from "@/components/DossierPanel";
 import { AgentLogPanel } from "@/components/AgentLogPanel";
 import { setStoredRunId } from "@/lib/run-context";
+import { prewarmCarousel } from "@/lib/carousel-prefetch";
 
 const LiveGraph = dynamic(
   () => import("@/components/LiveGraph").then((m) => m.LiveGraph),
@@ -23,6 +24,10 @@ function GraphPageInner() {
   useEffect(() => {
     if (runId) setStoredRunId(runId);
   }, [runId]);
+
+  useEffect(() => {
+    if (allReady) prewarmCarousel({ count: 1 });
+  }, [allReady]);
 
   if (!runId) {
     return (
