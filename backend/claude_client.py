@@ -1,22 +1,16 @@
 import json
 import re
-import anthropic
+from openai import AsyncOpenAI
 
-_client = anthropic.AsyncAnthropic()
-_MODEL = "claude-sonnet-4-6"
+_client = AsyncOpenAI()
+_MODEL = "gpt-4o"
 
-_SYSTEM_PROMPT = [
-    {
-        "type": "text",
-        "text": (
-            "You are a TikTok content strategist specializing in viral carousel content for product brands. "
-            "Analyze brand positioning, audience psychology, and trending content patterns to produce "
-            "high-converting carousel scripts. Be direct and specific. Use conversational, plain language. "
-            "Do not add commentary beyond what is requested."
-        ),
-        "cache_control": {"type": "ephemeral"},
-    }
-]
+_SYSTEM_PROMPT = (
+    "You are a TikTok content strategist specializing in viral carousel content for product brands. "
+    "Analyze brand positioning, audience psychology, and trending content patterns to produce "
+    "high-converting carousel scripts. Be direct and specific. Use conversational, plain language. "
+    "Do not add commentary beyond what is requested."
+)
 
 _STRATEGY_FALLBACK = {
     "hookPattern": "Contrarian opener",
@@ -44,13 +38,15 @@ async def analyze_brand(website_content: str, description: str, audience: str) -
         "Return a concise brand summary (3-5 sentences) covering: what the product does, "
         "its unique value proposition, its tone of voice, and who it serves."
     )
-    response = await _client.messages.create(
+    response = await _client.chat.completions.create(
         model=_MODEL,
         max_tokens=512,
-        system=_SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": user_msg}],
+        messages=[
+            {"role": "system", "content": _SYSTEM_PROMPT},
+            {"role": "user", "content": user_msg},
+        ],
     )
-    return response.content[0].text.strip()
+    return response.choices[0].message.content.strip()
 
 
 async def extract_strategy(
@@ -71,14 +67,16 @@ async def extract_strategy(
         "- ctaStyle: string describing the call-to-action approach\n"
         "- nicheScore: integer 0-100 representing how well the product fits current trending niches"
     )
-    response = await _client.messages.create(
+    response = await _client.chat.completions.create(
         model=_MODEL,
         max_tokens=1024,
-        system=_SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": user_msg}],
+        messages=[
+            {"role": "system", "content": _SYSTEM_PROMPT},
+            {"role": "user", "content": user_msg},
+        ],
     )
     try:
-        return json.loads(_strip_fences(response.content[0].text))
+        return json.loads(_strip_fences(response.choices[0].message.content))
     except Exception:
         return _STRATEGY_FALLBACK
 
@@ -87,7 +85,7 @@ async def generate_slides(strategy: dict, brand_summary: str) -> list[dict]:
     user_msg = (
         "Using this brand summary and content strategy, write the copy for a 7-slide TikTok carousel.\n\n"
         f"Brand summary:\n{brand_summary}\n\n"
-        f"Strategy:\n"
+        "Strategy:\n"
         f"- Hook pattern: {strategy.get('hookPattern', '')}\n"
         f"- Structure: {strategy.get('slideStructure', '')}\n"
         f"- CTA style: {strategy.get('ctaStyle', '')}\n\n"
@@ -96,15 +94,16 @@ async def generate_slides(strategy: dict, brand_summary: str) -> list[dict]:
         "- headline: string (3-6 words, punchy)\n"
         "- body: string (1-3 sentences, direct)"
     )
-    response = await _client.messages.create(
+    response = await _client.chat.completions.create(
         model=_MODEL,
         max_tokens=1024,
-        system=_SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": user_msg}],
+        messages=[
+            {"role": "system", "content": _SYSTEM_PROMPT},
+            {"role": "user", "content": user_msg},
+        ],
     )
     try:
-        slides = json.loads(_strip_fences(response.content[0].text))
-        # Pad to 7 if Claude returns fewer
+        slides = json.loads(_strip_fences(response.choices[0].message.content))
         while len(slides) < 7:
             n = len(slides) + 1
             slides.append({"number": n, "headline": f"Slide {n}", "body": "Content coming soon."})
