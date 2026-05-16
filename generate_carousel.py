@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 
 
-def run(cmd: list[str], label: str) -> None:
+def run(cmd: list, label: str) -> None:
     print(f"\n{'='*60}")
     print(f"  {label}")
     print(f"{'='*60}")

@@ -1,49 +1,48 @@
 account:
-  name: "my-tiktok-account"
-  handle: "@myaccount"
+  name: "hackathon-demo"
+  handle: "@hackathonacc"
 
 audience:
-  description: "Overwhelmed Gen-Z women 20-30 looking for calm productivity apps and gentle routines"
+  description: >
+    Serious-but-time-constrained male lifters (22–38), desk workers, busy lifestyles,
+    intermediate level. Topics: efficient training, recovery, consistency, mental habits.
+    Not beginner gym bros — intermediate lifters optimizing around work and life constraints.
   pain_points:
-    - "too many tabs open, can't focus"
-    - "guilt about not doing enough"
-    - "want to be organized but feel overwhelmed"
-  seeking: "apps that feel supportive, not demanding"
+    - "limited time between work and training"
+    - "plateauing despite consistent effort"
+    - "recovery falling behind volume"
+  seeking: "efficient optimization, not motivation — they already lift"
 
 tone:
-  voice: "Soft, friendly, first-person. Reassuring like a friend who found something that helped."
-  title_style: "short Title-Case listicle"  # e.g. "5 Apps for ADHD Mornings"
+  voice: "Direct, slightly contrarian, time/effort-framed. Treats the viewer as someone who already lifts and wants the optimization. No motivation fluff, no beginner basics."
+  title_style: "Direct contrarian hook"
   example_hooks:
-    - "5 Apps That Actually Help Me Focus"
-    - "Things That Fixed My Mornings"
-    - "Apps for When You're Scattered and Overwhelmed"
+    - "Why your warm-up is holding back your gains"
+    - "How desk workers can build serious muscle"
+    - "Things I stopped doing that made lifting easier"
 
 visual_identity:
-  vibe: "Soft bedroom corner, mid-afternoon light, tired-but-trying"
+  vibe: "Serious intermediate lifter. Real gym. No cringe."
   aesthetic_keywords:
-    - "cozy"
-    - "warm"
-    - "muted"
-    - "feminine"
-    - "introspective"
+    - "masculine"
+    - "gritty"
+    - "utilitarian"
+    - "disciplined"
+    - "unbranded"
   scene_elements:
-    - "unmade bed, linen sheets, soft pillows"
-    - "nightstand with candle, journal, water glass"
-    - "afternoon window light, slightly filtered"
-    - "trailing plant (pothos, ferns)"
+    - "actual gym — plates, rack, dumbbells, mirrors, chalk bowl"
+    - "hoodie, lifting tee, or tank — worn in, not new"
+    - "dim overhead gym lighting (harsh fluorescents or warm LEDs)"
   color_palette:
-    - "cream"
-    - "blush"
-    - "sage"
-    - "muted lavender"
-    - "dusty rose"
+    - "black"
+    - "charcoal"
+    - "gunmetal"
+    - "white"
   what_not_to_show:
-    - "gym equipment"
-    - "corporate settings"
-    - "harsh lighting"
-    - "neon colors"
-    - "clutter"
-    - "masculine palette"
+    - "home garage gym"
+    - "aesthetic gym-girl vibes"
+    - "pastels"
+    - "motivational posters with sunsets"
 
 content:
   slides_per_carousel: 6   # total slides including title slide
@@ -51,23 +50,27 @@ content:
 
 image_generation:
   base_prompt: >
-    Realistic candid lifestyle photography, natural lighting, photorealistic, iPhone photo quality,
-    no text in image, no watermarks, authentic feel — not staged, not AI-aesthetic
+    Candid iPhone photo, no text, no watermark, no social media UI, no phone frame,
+    full bleed edge-to-edge, realistic photographic grain, not AI-aesthetic
   aspect_ratio: "9:16"
+  title_prompt: >
+    Mirror selfie of a JACKED guy early 20s, thick chest broad capped shoulders full pumped
+    biceps defined abs, shirtless, grey joggers, black baseball cap brim all the way down
+    hiding face, wall of dumbbells behind him, real commercial gym dark painted walls,
+    flat overhead panel lights, cool muted dark tones, natural low-light grain
   scene_variety:
-    # Each slide should get a DIFFERENT type of scene
-    - "cozy bedroom interior, warm lamp light, rumpled linen sheets, nightstand with book and candle"
-    - "restaurant table with food, overhead angle, natural window light, marble surface"
-    - "outdoor scenic view, ocean or nature, wide shot, natural sky"
-    - "urban or fashion setting, staircase or hallway, warm interior tones"
-    - "luxury bathroom or spa, marble, soft natural light from above"
+    - "Low angle shot looking along gym floor toward rows of heavy equipment receding into distance, dark rubber flooring, dim overhead LED panel lights, moody atmosphere, no people"
+    - "Tight close-up of heavy black iron dumbbells resting on a rack, rubber floor texture in foreground, background softly blurred, dim lighting, no people"
+    - "Wide shot of full gym space showing multiple machines and squat racks, black ceiling overhead, overhead fluorescent lighting, no people"
+    - "Upward shot from below a barbell loaded with plates on a squat rack, ceiling and overhead lights visible above, dark gym atmosphere, no people"
+    - "Ground-level dark gym corner with kettlebells and weight plates scattered on rubber flooring, moody low light, no people"
 
 text_overlay:
-  font_size_title: 48        # bold numbered title
-  font_size_body: 36         # paragraph body text
-  font_size_subtitle: 34     # slide 1 subtitle
+  font_size_title: 52
+  font_size_body: 36
+  font_size_subtitle: 38
   text_color: "#FFFFFF"
   text_shadow: true
-  overlay_opacity: 0.72      # darkness of the rounded box background
-  slide_margin: 44           # px from slide edges to box
-  box_padding: 26            # inner padding inside the box
+  overlay_opacity: 0.75
+  slide_margin: 44
+  box_padding: 28

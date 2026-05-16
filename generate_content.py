@@ -165,13 +165,6 @@ def build_system_prompt(persona: dict, analysis: Optional[dict] = None) -> str:
     aud = p["audience"]
     tone = p["tone"]
     vis = p["visual_identity"]
-    img = p["image_generation"]
-
-    # Base image prompt: persona base + reference background if available
-    base_prompt = img["base_prompt"].strip()
-    if analysis and analysis.get("background", {}).get("gemini_prompt_fragment"):
-        bg_fragment = analysis["background"]["gemini_prompt_fragment"]
-        base_prompt = f"{base_prompt}\nReference background style: {bg_fragment}"
 
     # Text style rules: persona defaults + reference overrides if available
     if analysis and analysis.get("text_style"):
@@ -209,9 +202,6 @@ def build_system_prompt(persona: dict, analysis: Optional[dict] = None) -> str:
         Color palette: {", ".join(vis["color_palette"])}
         Do NOT show: {", ".join(vis["what_not_to_show"])}
 
-        IMAGE PROMPT BASE (use this as the foundation for every per-slide image_prompt):
-        {base_prompt}
-
         OUTPUT FORMAT
         You must respond with ONLY valid JSON — no markdown, no commentary, no code fences.
         {{
@@ -219,12 +209,11 @@ def build_system_prompt(persona: dict, analysis: Optional[dict] = None) -> str:
             {{
               "slug": "kebab-case-topic-slug",
               "title_slide": "Hook that exactly matches the text style above",
-              "subtitle": "Short supporting line below the title (1 sentence, softer tone)",
+              "subtitle": "Short supporting line below the title (1 sentence)",
               "slides": [
                 {{
                   "title": "Slide Title (no number — numbering added automatically)",
-                  "body": "Paragraph-style explanation. 3-5 sentences totalling 50-80 words. Specific and actionable. Each sentence builds on the previous.",
-                  "image_prompt": "Realistic candid lifestyle photography prompt for this slide's background — specific scene, natural lighting, no people unless essential, no text in image, photorealistic iPhone quality"
+                  "body": "1-2 sentences, 15-25 words, direct and actionable. No commas or em dashes."
                 }}
               ],
               "caption": "Long-form TikTok caption with 5 hashtags at the end"
@@ -234,11 +223,10 @@ def build_system_prompt(persona: dict, analysis: Optional[dict] = None) -> str:
 
         RULES
         - Each topic has exactly {p["content"]["slides_per_carousel"] - 1} slides (title slide is separate)
-        - title_slide: match the hook format and register from TEXT STYLE — not a generic working title
-        - subtitle: 1 short sentence framing who this is for or why it matters (e.g. "From someone who learned the hard way.")
-        - slide title: concise, no number prefix
-        - slide body: paragraph-style, 3-5 sentences, ~50-80 words — specific, actionable, builds naturally
-        - image_prompt: VARIED scenes per slide — bedroom, food, outdoor, urban, interior, etc. Each slide a different setting. Photorealistic, candid, natural lighting. No text. No staged AI aesthetic.
+        - title_slide: direct contrarian hook — match the TEXT STYLE register exactly
+        - subtitle: 1 short sentence framing who this is for or the key insight (15 words max)
+        - slide title: concise app/concept name or short phrase, no number prefix
+        - slide body: 1-2 sentences, 15-25 words, no commas, no em dashes, specific and actionable
         - caption: strong opening line, SEO keywords, exactly 5 hashtags, no emojis
         - Vary topic angles — no two topics should share the same opener template
     """).strip()
