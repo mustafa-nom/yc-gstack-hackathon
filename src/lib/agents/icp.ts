@@ -1,6 +1,6 @@
 import { generateText, Output } from "ai";
-import { anthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
+import { getAgentModel } from "./model";
 
 const IcpSchema = z.object({
   icp: z
@@ -24,8 +24,6 @@ const IcpSchema = z.object({
 
 export type IcpOutput = z.infer<typeof IcpSchema>;
 
-const ICP_MODEL = process.env.ICP_MODEL ?? "claude-opus-4-7";
-
 export async function inferIcp(input: {
   website: string;
   description?: string;
@@ -43,7 +41,7 @@ export async function inferIcp(input: {
   ].filter(Boolean);
 
   const { experimental_output: output } = await generateText({
-    model: anthropic(ICP_MODEL),
+    model: getAgentModel("icp"),
     experimental_output: Output.object({ schema: IcpSchema }),
     system:
       "You are a TikTok growth strategist. Given a product, you infer the ICP and propose specific niches where the product fits TikTok's algorithm and audience taste.",

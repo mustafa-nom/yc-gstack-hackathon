@@ -3,10 +3,16 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { ArrowRight, Zap, Loader2 } from "lucide-react";
 import { startOnboarding } from "@/app/actions/onboard";
 import type { GraphEvent } from "@/lib/graph-bus";
 import { setStoredRunId } from "@/lib/run-context";
+
+const LiveGraph = dynamic(
+  () => import("@/components/LiveGraph").then((m) => m.LiveGraph),
+  { ssr: false },
+);
 
 const STEP_ORDER = [
   "welcome",
@@ -160,7 +166,12 @@ export default function OnboardingFlow() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col relative">
+      {step === "scanning" && runId && (
+        <div className="fixed inset-0 z-0 pointer-events-none">
+          <LiveGraph runId={runId} />
+        </div>
+      )}
       {showProgress && (
         <div className="fixed top-0 left-0 right-0 h-[2px] bg-subtle z-50">
           <motion.div
@@ -172,7 +183,7 @@ export default function OnboardingFlow() {
         </div>
       )}
 
-      <div className="flex-1 flex items-center justify-center px-6">
+      <div className="flex-1 flex items-center justify-center px-6 relative z-10">
         <AnimatePresence mode="wait">
           {step === "welcome" && (
             <motion.div key="welcome" {...motionProps} className="text-center max-w-md">

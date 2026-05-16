@@ -1,8 +1,6 @@
 import { generateText, Output } from "ai";
-import { anthropic } from "@ai-sdk/anthropic";
 import { StrategySchema, type Strategy, type HogSearchItem } from "@/lib/hog/schema";
-
-const SYNTH_MODEL = process.env.SYNTH_MODEL ?? "claude-opus-4-7";
+import { getAgentModel } from "./model";
 
 export async function synthesizeStrategyFromCaptions(input: {
   niche: string;
@@ -24,7 +22,7 @@ export async function synthesizeStrategyFromCaptions(input: {
     .join("\n\n");
 
   const { experimental_output: output } = await generateText({
-    model: anthropic(SYNTH_MODEL),
+    model: getAgentModel("synthesize"),
     experimental_output: Output.object({ schema: StrategySchema }),
     system:
       "You are a TikTok content analyst. Given real TikTok captions and engagement metrics, you extract a content strategy: verbatim hooks (first line of caption), hashtags (from #tags in caption text), creator archetypes, formats, voice, and anti-patterns. Be specific — quote hooks verbatim and cite which video number (V1, V2, ...) you pulled each from.",
