@@ -245,13 +245,14 @@ export default function OnboardingFlow({
                     if (description.trim()) goNext("description");
                   }
                 }}
-                rows={3}
+                rows={2}
                 className="w-full bg-transparent border-b border-card-border py-3 text-lg text-foreground placeholder:text-muted/40 focus:outline-none focus:border-accent transition-colors resize-none"
               />
               <StepNav
                 onBack={() => goBack("description")}
                 onNext={() => description.trim() && goNext("description")}
                 nextDisabled={!description.trim()}
+                onSkip={() => goNext("description")}
               />
             </motion.div>
           )}
@@ -427,10 +428,12 @@ function StepNav({
   onBack,
   onNext,
   nextDisabled,
+  onSkip,
 }: {
   onBack: (() => void) | null;
   onNext: () => void;
   nextDisabled: boolean;
+  onSkip?: () => void;
 }) {
   return (
     <div className="flex items-center justify-between mt-8">
@@ -450,14 +453,24 @@ function StepNav({
           to continue
         </p>
       )}
-      <button
-        onClick={onNext}
-        disabled={nextDisabled}
-        className="inline-flex items-center gap-2 bg-accent hover:bg-accent-hover disabled:opacity-30 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer disabled:cursor-not-allowed"
-      >
-        Next
-        <ArrowRight className="w-3.5 h-3.5" />
-      </button>
+      <div className="flex items-center gap-3">
+        {onSkip && (
+          <button
+            onClick={onSkip}
+            className="text-sm text-muted hover:text-foreground transition-colors cursor-pointer"
+          >
+            Skip
+          </button>
+        )}
+        <button
+          onClick={onNext}
+          disabled={nextDisabled}
+          className="inline-flex items-center gap-2 bg-accent hover:bg-accent-hover disabled:opacity-30 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer disabled:cursor-not-allowed"
+        >
+          Next
+          <ArrowRight className="w-3.5 h-3.5" />
+        </button>
+      </div>
     </div>
   );
 }
