@@ -2,7 +2,12 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, useEffect, useSyncExternalStore } from "react";
+import {
+  getStoredRunId,
+  setStoredRunId,
+  subscribeStoredRunId,
+} from "@/lib/run-context";
 
 const TABS = [
   { href: "/graph", label: "Graph" },
@@ -13,8 +18,19 @@ const TABS = [
 function NavHeaderInner() {
   const pathname = usePathname();
   const params = useSearchParams();
-  const runId = params.get("runId");
-  const suffix = runId ? `?runId=${runId}` : "";
+  const urlRunId = params.get("runId");
+  const storedRunId = useSyncExternalStore(
+    subscribeStoredRunId,
+    getStoredRunId,
+    () => null,
+  );
+
+  useEffect(() => {
+    if (urlRunId) setStoredRunId(urlRunId);
+  }, [urlRunId]);
+
+  const runId = urlRunId ?? storedRunId;
+  const suffix = runId ? `?runId=${encodeURIComponent(runId)}` : "";
 
   return (
     <header className="border-b border-card-border relative z-20">

@@ -1,15 +1,34 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Loader2, Sparkles, CircleAlert, CircleCheck, ArrowUp } from "lucide-react";
+import {
+  Loader2,
+  Sparkles,
+  CircleAlert,
+  CircleCheck,
+  ArrowRight,
+  Check,
+  Send,
+  Bot,
+} from "lucide-react";
 import type { GraphEvent } from "@/lib/graph-bus";
+import { generateDesigns } from "@/app/actions/generate-designs";
+import { pushToTiktok } from "@/app/actions/push-to-tiktok";
+import { nicheSlugFromName } from "@/lib/slugs";
 
 type LogLine = {
   ts: string;
   level: "info" | "success" | "warn" | "error";
   message: string;
   scope?: string;
+};
+
+type NicheStatus = "ready" | "generating" | "designed" | "pushing" | "pushed";
+
+type NicheRowState = {
+  status: NicheStatus;
+  message?: string;
 };
 
 function levelColor(level: LogLine["level"]): string {
@@ -47,12 +66,16 @@ function fmtTime(iso: string): string {
 export function AgentLogPanel({
   runId,
   allReady,
+  niches,
 }: {
   runId: string;
   allReady: boolean;
+  niches: string[];
 }) {
   const [lines, setLines] = useState<LogLine[]>([]);
-  const [ask, setAsk] = useState("");
+  const [rowState, setRowState] = useState<Record<string, NicheRowState>>({});
+  const [, startTransition] = useTransition();
+  const scrollerRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -79,27 +102,78 @@ export function AgentLogPanel({
   }, [runId]);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [lines.length]);
+    const el = scrollerRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }, [lines.length, allReady, niches.length]);
+
+  function setStatus(niche: string, patch: Partial<NicheRowState>) {
+    setRowState((prev) => {
+      const current = prev[niche] ?? { status: "ready" as NicheStatus };
+      return { ...prev, [niche]: { ...current, ...patch } };
+    });
+  }
+
+  async function onGenerate(niche: string) {
+    setStatus(niche, { status: "generating", message: "Generating designs…" });
+    startTransition(async () => {
+      try {
+        const result = await generateDesigns({ niche });
+        setStatus(niche, {
+          status: "designed",
+          message: result.mocked
+            ? `Mock designs ready`
+            : `Designs ready (exit ${result.exitCode})`,
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        setStatus(niche, { status: "ready", message: `error: ${msg}` });
+      }
+    });
+  }
+
+  async function onPush(niche: string) {
+    setStatus(niche, { status: "pushing", message: "Pushing to TikTok…" });
+    startTransition(async () => {
+      try {
+        const result = await pushToTiktok({ nicheSlug: nicheSlugFromName(niche) });
+        setStatus(niche, { status: "pushed", message: result.message });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        setStatus(niche, { status: "designed", message: `error: ${msg}` });
+      }
+    });
+  }
 
   return (
-    <aside className="fixed top-0 bottom-0 left-0 z-20 w-full sm:w-[380px] flex flex-col">
+    <aside className="fixed top-0 bottom-0 left-0 z-20 w-full sm:w-[460px] lg:w-[520px] flex flex-col">
       <div className="h-full flex flex-col bg-card-bg/85 border-r border-card-border backdrop-blur-md">
-        <header className="px-5 py-4 border-b border-card-border flex items-center gap-2">
-          <div
-            className={`w-1.5 h-1.5 rounded-full ${
-              allReady ? "bg-success" : "bg-accent animate-pulse"
-            }`}
-          />
-          <p className="text-[10px] font-mono uppercase tracking-widest text-muted">
-            agent log
-          </p>
-          <p className="text-[10px] font-mono text-muted/60 ml-auto">
-            run · {runId.slice(-8)}
-          </p>
+        <header className="px-5 py-4 border-b border-card-border flex items-center gap-2.5">
+          <div className="relative">
+            <div className="w-7 h-7 rounded-md bg-gradient-to-br from-accent/30 to-accent/10 border border-accent/30 flex items-center justify-center">
+              <Bot className="w-3.5 h-3.5 text-accent" />
+            </div>
+            <span
+              className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full ring-2 ring-card-bg ${
+                allReady ? "bg-success" : "bg-accent animate-pulse"
+              }`}
+            />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[11px] font-medium text-foreground/90 leading-tight">
+              BrainPost Agent
+            </p>
+            <p className="text-[9px] font-mono uppercase tracking-widest text-muted/70 mt-0.5">
+              {allReady ? "ready" : "thinking…"} · run · {runId.slice(-8)}
+            </p>
+          </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto px-3 py-4 space-y-2 font-mono text-xs">
+        <div
+          ref={scrollerRef}
+          data-lenis-prevent
+          className="flex-1 overflow-y-auto overscroll-contain px-3 py-4 space-y-2 font-mono text-xs"
+        >
           <AnimatePresence initial={false}>
             {lines.map((line, i) => (
               <motion.div
@@ -126,36 +200,150 @@ export function AgentLogPanel({
               </motion.div>
             ))}
           </AnimatePresence>
+
           {lines.length === 0 && (
-            <div className="text-muted/50 text-xs px-2 py-3 italic">
-              Waiting for the agent to begin…
+            <div className="space-y-2 px-2 py-3">
+              <div className="shimmer-surface h-3 w-2/3 rounded" />
+              <div className="shimmer-surface h-3 w-1/2 rounded" />
+              <p className="text-muted/50 text-xs italic pt-2">
+                Waiting for the agent to begin…
+              </p>
             </div>
           )}
+
+          {!allReady && lines.length > 0 && (
+            <div className="flex items-center gap-2 px-2 py-2 mt-1">
+              <Loader2 className="w-3 h-3 text-accent animate-spin shrink-0" />
+              <span className="shimmer-text text-[11px] font-mono uppercase tracking-widest">
+                Synthesizing niches…
+              </span>
+            </div>
+          )}
+
+          <AnimatePresence>
+            {allReady && niches.length > 0 && (
+              <motion.div
+                key="strategy-block"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+                className="mt-3 pt-3 border-t border-card-border/80"
+              >
+                <div className="flex items-start gap-2.5 px-2">
+                  <div className="w-5 h-5 rounded-md bg-accent/15 border border-accent/30 flex items-center justify-center shrink-0 mt-0.5">
+                    <Sparkles className="w-2.5 h-2.5 text-accent" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-mono uppercase tracking-widest text-success">
+                      Strategies ready
+                    </p>
+                    <p className="text-[12px] text-foreground/90 font-sans mt-1 leading-relaxed">
+                      I synthesized <span className="font-semibold">{niches.length}</span>{" "}
+                      niche{niches.length === 1 ? "" : "s"} from the live graph. Pick one
+                      to generate designs, then push to TikTok.
+                    </p>
+                  </div>
+                </div>
+
+                <ul className="mt-3 space-y-2 px-1">
+                  {niches.map((niche, idx) => {
+                    const state =
+                      rowState[niche] ?? ({ status: "ready" } as NicheRowState);
+                    const isWorking =
+                      state.status === "generating" || state.status === "pushing";
+                    return (
+                      <motion.li
+                        key={niche}
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{
+                          duration: 0.3,
+                          delay: 0.05 + idx * 0.06,
+                          ease: [0.16, 1, 0.3, 1],
+                        }}
+                        className="group relative rounded-lg border border-card-border bg-subtle/40 hover:bg-subtle/70 hover:border-accent/30 transition-all overflow-hidden"
+                      >
+                        {isWorking && (
+                          <span
+                            aria-hidden
+                            className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-accent to-transparent shimmer-surface opacity-80"
+                          />
+                        )}
+                        <div className="flex items-center gap-3 px-3 py-2.5">
+                          <div className="flex items-center justify-center w-6 h-6 rounded-md bg-card-bg border border-card-border shrink-0">
+                            <span className="text-[10px] font-mono text-muted">
+                              {String(idx + 1).padStart(2, "0")}
+                            </span>
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[13px] font-medium font-sans text-foreground truncate leading-tight">
+                              {niche}
+                            </p>
+                            {state.message ? (
+                              <p
+                                className={`text-[10px] font-mono mt-0.5 truncate ${
+                                  isWorking ? "shimmer-text" : "text-muted"
+                                }`}
+                              >
+                                {state.message}
+                              </p>
+                            ) : (
+                              <p className="text-[10px] font-mono text-muted/60 mt-0.5">
+                                tap generate to draft designs
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="flex items-center shrink-0">
+                            {(state.status === "ready" ||
+                              state.status === "generating") && (
+                              <button
+                                onClick={() => onGenerate(niche)}
+                                disabled={state.status === "generating"}
+                                className="inline-flex items-center gap-1.5 bg-accent hover:bg-accent-hover text-white text-[11px] px-2.5 py-1.5 rounded-md font-medium font-sans transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-wait"
+                              >
+                                {state.status === "generating" ? (
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                ) : (
+                                  <ArrowRight className="w-3 h-3" />
+                                )}
+                                Generate
+                              </button>
+                            )}
+                            {(state.status === "designed" ||
+                              state.status === "pushing") && (
+                              <button
+                                onClick={() => onPush(niche)}
+                                disabled={state.status === "pushing"}
+                                className="inline-flex items-center gap-1.5 bg-foreground hover:bg-foreground/90 text-background text-[11px] px-2.5 py-1.5 rounded-md font-medium font-sans transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-wait"
+                              >
+                                {state.status === "pushing" ? (
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                ) : (
+                                  <Send className="w-3 h-3" />
+                                )}
+                                Push
+                              </button>
+                            )}
+                            {state.status === "pushed" && (
+                              <span className="inline-flex items-center gap-1.5 text-success text-[11px] px-2.5 py-1.5 font-sans font-medium">
+                                <Check className="w-3 h-3" />
+                                Posted
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </motion.li>
+                    );
+                  })}
+                </ul>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <div ref={endRef} />
         </div>
-
-        <footer className="px-3 py-3 border-t border-card-border">
-          <div className="flex items-center gap-2 bg-subtle/60 border border-card-border rounded-lg px-3 py-2">
-            <input
-              type="text"
-              placeholder="Ask anything about your data…"
-              value={ask}
-              onChange={(e) => setAsk(e.target.value)}
-              disabled
-              className="flex-1 bg-transparent text-xs placeholder:text-muted/50 focus:outline-none disabled:cursor-not-allowed"
-            />
-            <button
-              disabled
-              className="text-muted/40 cursor-not-allowed"
-              aria-label="Send"
-            >
-              <ArrowUp className="w-3.5 h-3.5" />
-            </button>
-          </div>
-          <p className="text-[9px] text-muted/40 mt-1.5 px-1 font-mono uppercase tracking-widest">
-            chat · coming soon
-          </p>
-        </footer>
       </div>
     </aside>
   );

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, Zap, Loader2 } from "lucide-react";
 import { startOnboarding } from "@/app/actions/onboard";
 import type { GraphEvent } from "@/lib/graph-bus";
+import { setStoredRunId } from "@/lib/run-context";
 
 const STEP_ORDER = [
   "welcome",
@@ -73,6 +74,7 @@ export default function OnboardingFlow() {
         referenceTiktok: tiktok,
       });
       setRunId(result.runId);
+      setStoredRunId(result.runId);
       setStep("scanning");
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
