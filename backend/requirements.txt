@@ -5,3 +5,8 @@ httpx==0.28.1
 beautifulsoup4==4.12.3
 python-multipart==0.0.20
 python-dotenv==1.0.1
+
+# carousel feature
+google-genai>=1.0.0
+pyyaml>=6.0
+Pillow>=10.0.0
