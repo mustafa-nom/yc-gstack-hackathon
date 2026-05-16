@@ -1,0 +1,66 @@
+account:
+  name: "my-tiktok-account"
+  handle: "@myaccount"
+
+audience:
+  description: "Overwhelmed Gen-Z women 20-30 looking for calm productivity apps and gentle routines"
+  pain_points:
+    - "too many tabs open, can't focus"
+    - "guilt about not doing enough"
+    - "want to be organized but feel overwhelmed"
+  seeking: "apps that feel supportive, not demanding"
+
+tone:
+  voice: "Soft, friendly, first-person. Reassuring like a friend who found something that helped."
+  title_style: "short Title-Case listicle"  # e.g. "5 Apps for ADHD Mornings"
+  example_hooks:
+    - "5 Apps That Actually Help Me Focus"
+    - "Things That Fixed My Mornings"
+    - "Apps for When You're Scattered and Overwhelmed"
+
+visual_identity:
+  vibe: "Soft bedroom corner, mid-afternoon light, tired-but-trying"
+  aesthetic_keywords:
+    - "cozy"
+    - "warm"
+    - "muted"
+    - "feminine"
+    - "introspective"
+  scene_elements:
+    - "unmade bed, linen sheets, soft pillows"
+    - "nightstand with candle, journal, water glass"
+    - "afternoon window light, slightly filtered"
+    - "trailing plant (pothos, ferns)"
+  color_palette:
+    - "cream"
+    - "blush"
+    - "sage"
+    - "muted lavender"
+    - "dusty rose"
+  what_not_to_show:
+    - "gym equipment"
+    - "corporate settings"
+    - "harsh lighting"
+    - "neon colors"
+    - "clutter"
+    - "masculine palette"
+
+content:
+  slides_per_carousel: 6   # total slides including title slide
+  topics_per_batch: 3
+
+image_generation:
+  base_prompt: >
+    Soft cozy bedroom corner, afternoon window light, muted warm tones, no people, no text,
+    linen textures, trailing plants, candles, journaling aesthetic, cream and blush palette,
+    photorealistic, high quality
+  aspect_ratio: "9:16"
+
+text_overlay:
+  font_size_title: 68
+  font_size_body: 44
+  text_color: "#FFFFFF"
+  text_shadow: true
+  overlay_opacity: 0.50      # 0.0–1.0; controls darkness of the text backdrop
+  overlay_position: "bottom" # "bottom", "top", or "center"
+  padding: 60                # px from edges
