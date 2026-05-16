@@ -46,18 +46,40 @@ async function gbrain(
   });
 }
 
+function isTransientGbrainError(msg: string): boolean {
+  return (
+    /foreign key constraint/i.test(msg) ||
+    /UNIQUE constraint/i.test(msg) ||
+    /database is locked/i.test(msg) ||
+    /Timed out waiting/i.test(msg)
+  );
+}
+
 function gbrainDetached(args: string[]): void {
   void enqueueGbrain(async () => {
-    try {
-      await exec(GBRAIN_BIN, args, {
+    const run = () =>
+      exec(GBRAIN_BIN, args, {
         maxBuffer: 32 * 1024 * 1024,
         timeout: 240_000,
       });
+    try {
+      await run();
     } catch (err) {
-      console.error(
-        "[gbrain queued] error:",
-        err instanceof Error ? err.message : String(err),
-      );
+      const msg = err instanceof Error ? err.message : String(err);
+      if (isTransientGbrainError(msg)) {
+        await new Promise((r) => setTimeout(r, 1200));
+        try {
+          await run();
+          return;
+        } catch (err2) {
+          console.error(
+            "[gbrain queued] retry failed:",
+            err2 instanceof Error ? err2.message : String(err2),
+          );
+          return;
+        }
+      }
+      console.error("[gbrain queued] error:", msg);
     }
   });
 }
