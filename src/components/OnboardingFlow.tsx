@@ -2,12 +2,14 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Loader2, ArrowRight, Download } from "lucide-react";
-import type { ScanResult, StrategyData, SlideData } from "@/types"
-import { KnowledgeGraph, type GraphNode } from "@/components/KnowledgeGraph";
-import { AgentViewer } from "@/components/AgentViewer";
+import { useRouter } from "next/navigation";
+import { ArrowRight, Zap, Loader2 } from "lucide-react";
+import { startOnboarding } from "@/app/actions/onboard";
+import type { GraphEvent } from "@/lib/graph-bus";
+import { setStoredRunId } from "@/lib/run-context";
 
 const STEP_ORDER = [
+  "welcome",
   "website",
   "description",
   "tiktok",
@@ -16,52 +18,23 @@ const STEP_ORDER = [
 
 type Step = (typeof STEP_ORDER)[number];
 
-export default function OnboardingFlow({
-  onComplete,
-}: {
-  onComplete: (data: ScanResult) => void;
-}) {
-  const [step, setStep] = useState<Step>("website");
+export default function OnboardingFlow() {
+  const [step, setStep] = useState<Step>("welcome");
   const [website, setWebsite] = useState("");
-  const [websiteChecking, setWebsiteChecking] = useState(false);
-  const [websiteError, setWebsiteError] = useState<string | null>(null);
   const [description, setDescription] = useState("");
   const [tiktok, setTiktok] = useState("");
-  const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
-
-  const validateAndAdvance = useCallback(async () => {
-    if (!website.trim()) return;
-    setWebsiteChecking(true);
-    setWebsiteError(null);
-    try {
-      const resp = await fetch("http://localhost:8000/validate-url", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: website.trim() }),
-      });
-      const data = await resp.json();
-      if (!data.valid) {
-        setWebsiteError("We couldn't reach that website. Check the URL and try again.");
-        return;
-      }
-      if (data.resolved && data.resolved.replace(/\/$/, "") !== website.trim().replace(/\/$/, "")) {
-        setWebsite(data.resolved);
-      }
-      setStep("description");
-    } catch {
-      setWebsiteError("Validation failed. Is the backend running?");
-    } finally {
-      setWebsiteChecking(false);
-    }
-  }, [website]);
-  const [logLines, setLogLines] = useState<string[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [runId, setRunId] = useState<string | null>(null);
+  const [logLines, setLogLines] = useState<{ text: string; level: "info" | "success" | "warn" | "error" }[]>([]);
   const [currentTyping, setCurrentTyping] = useState("");
-  const [scanDone, setScanDone] = useState(false);
-  const [personalMd, setPersonalMd] = useState("");
+  const [allReady, setAllReady] = useState(false);
+  const [readyNiches, setReadyNiches] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
-  const scanResultRef = useRef<ScanResult | null>(null);
+  const typeQueueRef = useRef<{ text: string; level: "info" | "success" | "warn" | "error" }[]>([]);
+  const typingRef = useRef(false);
+  const router = useRouter();
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -71,98 +44,93 @@ export default function OnboardingFlow({
     return () => clearTimeout(timer);
   }, [step]);
 
+  const drainRef = useRef<() => void>(() => {});
+  const drainTypeQueue = useCallback(() => {
+    if (typingRef.current) return;
+    const next = typeQueueRef.current.shift();
+    if (!next) return;
+    typingRef.current = true;
+    const { text, level } = next;
+    let i = 0;
+    const interval = setInterval(() => {
+      i++;
+      setCurrentTyping(text.slice(0, i));
+      if (i >= text.length) {
+        clearInterval(interval);
+        setCurrentTyping("");
+        setLogLines((prev) => [...prev, { text, level }]);
+        typingRef.current = false;
+        setTimeout(() => drainRef.current(), 80);
+      }
+    }, 14);
+  }, []);
+  useEffect(() => {
+    drainRef.current = drainTypeQueue;
+  }, [drainTypeQueue]);
+
+  const launch = useCallback(async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      const result = await startOnboarding({
+        website,
+        description,
+        referenceTiktok: tiktok,
+      });
+      setRunId(result.runId);
+      setStoredRunId(result.runId);
+      setStep("scanning");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[onboarding] launch failed:", msg);
+      setSubmitting(false);
+    }
+  }, [submitting, website, description, tiktok]);
+
+  useEffect(() => {
+    if (step !== "scanning" || !runId) return;
+    const es = new EventSource(`/api/graph/stream?runId=${encodeURIComponent(runId)}`);
+    es.onmessage = (e) => {
+      let event: GraphEvent;
+      try {
+        event = JSON.parse(e.data) as GraphEvent;
+      } catch {
+        return;
+      }
+      if (event.kind === "log") {
+        typeQueueRef.current.push({ text: event.message, level: event.level });
+        drainTypeQueue();
+      } else if (event.kind === "nicheReady") {
+        typeQueueRef.current.push({
+          text: `niche ready: ${event.niche}`,
+          level: "success",
+        });
+        setReadyNiches((n) => n + 1);
+        drainTypeQueue();
+      } else if (event.kind === "allReady") {
+        typeQueueRef.current.push({
+          text: "all niches ready — graph fully synthesized",
+          level: "success",
+        });
+        setAllReady(true);
+        drainTypeQueue();
+      } else if (event.kind === "error") {
+        typeQueueRef.current.push({
+          text: event.message,
+          level: "error",
+        });
+        drainTypeQueue();
+      }
+    };
+    es.onerror = () => {
+      // EventSource auto-reconnects; nothing to do
+    };
+    return () => es.close();
+  }, [step, runId, drainTypeQueue]);
+
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [logLines, currentTyping]);
-
-  const typewriterLine = useCallback(
-    (text: string): Promise<void> =>
-      new Promise((resolve) => {
-        let i = 0;
-        const interval = setInterval(() => {
-          i++;
-          setCurrentTyping(text.slice(0, i));
-          if (i >= text.length) {
-            clearInterval(interval);
-            setCurrentTyping("");
-            setLogLines((prev) => [...prev, text]);
-            resolve();
-          }
-        }, 20);
-      }),
-    []
-  );
-
-  const runScan = useCallback(async () => {
-    setStep("scanning");
-    setLogLines([]);
-    setCurrentTyping("");
-
-    const response = await fetch("http://localhost:8000/analyze", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ website, description, tiktok }),
-    });
-
-    if (!response.body) return;
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const parts = buffer.split("\n\n");
-      buffer = parts.pop() ?? "";
-
-      for (const part of parts) {
-        const line = part.trim();
-        if (!line.startsWith("data:")) continue;
-        const raw = line.slice(5).trim();
-        let event: {
-          type: string;
-          message?: string;
-          strategy?: StrategyData;
-          slides?: SlideData[];
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          persona?: Record<string, any>;
-          personalMd?: string;
-        };
-        try {
-          event = JSON.parse(raw);
-        } catch {
-          continue;
-        }
-
-        if (event.type === "log" && event.message) {
-          await typewriterLine(event.message);
-          await new Promise((r) => setTimeout(r, 350));
-        } else if (event.type === "done") {
-          setPersonalMd(event.personalMd ?? "");
-          setScanDone(true);
-          scanResultRef.current = {
-            strategy: event.strategy!,
-            slides: event.slides!,
-            persona: event.persona ?? {},
-            personalMd: event.personalMd!,
-          };
-        }
-      }
-    }
-  }, [typewriterLine, website, description, tiktok, onComplete]);
-
-  const downloadPersonalMd = () => {
-    const blob = new Blob([personalMd], { type: "text/markdown" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "persona.md";
-    a.click();
-    URL.revokeObjectURL(url);
-  };
 
   const handleKeyDown = (e: React.KeyboardEvent, onEnter: () => void, onTab?: () => void) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onEnter(); }
@@ -180,9 +148,9 @@ export default function OnboardingFlow({
   };
 
   const stepIndex = STEP_ORDER.indexOf(step);
-  const inputSteps = STEP_ORDER.filter((s) => s !== "scanning");
+  const inputSteps = STEP_ORDER.filter((s) => s !== "welcome" && s !== "scanning");
   const inputStepNum = inputSteps.indexOf(step as (typeof inputSteps)[number]) + 1;
-  const showProgress = step !== "scanning";
+  const showProgress = step !== "welcome" && step !== "scanning";
 
   const motionProps = {
     initial: { opacity: 0, y: 20 } as const,
@@ -193,25 +161,12 @@ export default function OnboardingFlow({
 
   return (
     <div className="min-h-screen flex flex-col">
-      <KnowledgeGraph
-        visible={step === "scanning"}
-        onNodeClick={(n) => setSelectedNode(n)}
-      />
-      {step === "scanning" && (
-        <AgentViewer
-          key={selectedNode?.id ?? "none"}
-          node={selectedNode}
-          onClose={() => setSelectedNode(null)}
-        />
-      )}
       {showProgress && (
         <div className="fixed top-0 left-0 right-0 h-[2px] bg-subtle z-50">
           <motion.div
             className="h-full bg-accent"
             initial={{ width: "0%" }}
-            animate={{
-              width: `${(stepIndex / (STEP_ORDER.length - 1)) * 100}%`,
-            }}
+            animate={{ width: `${(stepIndex / (STEP_ORDER.length - 1)) * 100}%` }}
             transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
           />
         </div>
@@ -219,6 +174,29 @@ export default function OnboardingFlow({
 
       <div className="flex-1 flex items-center justify-center px-6">
         <AnimatePresence mode="wait">
+          {step === "welcome" && (
+            <motion.div key="welcome" {...motionProps} className="text-center max-w-md">
+              <div className="inline-flex items-center gap-2.5 mb-8">
+                <Zap className="w-6 h-6 text-accent" />
+                <span className="text-xl font-semibold tracking-tight">BrainPost</span>
+              </div>
+              <h1 className="text-3xl font-semibold tracking-tight mb-3">
+                Build your content strategy
+              </h1>
+              <p className="text-muted text-base mb-10 leading-relaxed">
+                Answer a few quick questions and our agent will research your niches live on
+                TikTok, then build an optimized content plan.
+              </p>
+              <button
+                onClick={() => goNext("welcome")}
+                className="inline-flex items-center gap-2 bg-accent hover:bg-accent-hover text-white px-6 py-3 rounded-lg text-sm font-medium transition-colors cursor-pointer"
+              >
+                Get Started
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </motion.div>
+          )}
+
           {step === "website" && (
             <motion.div key="website" {...motionProps} className="w-full max-w-lg">
               <p className="text-sm text-muted mb-2 font-mono">
@@ -235,29 +213,14 @@ export default function OnboardingFlow({
                 type="url"
                 placeholder="https://yourproduct.com"
                 value={website}
-                onChange={(e) => {
-                  setWebsite(e.target.value);
-                  if (websiteError) setWebsiteError(null);
-                }}
-                onKeyDown={(e) =>
-                  handleKeyDown(e, () => !websiteChecking && validateAndAdvance())
-                }
-                disabled={websiteChecking}
-                className="w-full bg-transparent border-b border-card-border py-3 text-lg text-foreground placeholder:text-muted/40 focus:outline-none focus:border-accent transition-colors disabled:opacity-60"
+                onChange={(e) => setWebsite(e.target.value)}
+                onKeyDown={(e) => handleKeyDown(e, () => website.trim() && goNext("website"))}
+                className="w-full bg-transparent border-b border-card-border py-3 text-lg text-foreground placeholder:text-muted/40 focus:outline-none focus:border-accent transition-colors"
               />
-              {websiteError && (
-                <p className="mt-3 text-xs text-danger">{websiteError}</p>
-              )}
-              {websiteChecking && (
-                <p className="mt-3 text-xs text-muted flex items-center gap-2">
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                  Checking the URL…
-                </p>
-              )}
               <StepNav
                 onBack={null}
-                onNext={() => !websiteChecking && validateAndAdvance()}
-                nextDisabled={!website.trim() || websiteChecking}
+                onNext={() => website.trim() && goNext("website")}
+                nextDisabled={!website.trim()}
               />
             </motion.div>
           )}
@@ -279,7 +242,11 @@ export default function OnboardingFlow({
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 onKeyDown={(e) =>
-                  handleKeyDown(e, () => description.trim() && goNext("description"), () => goNext("description"))
+                  handleKeyDown(
+                    e,
+                    () => description.trim() && goNext("description"),
+                    () => goNext("description"),
+                  )
                 }
                 rows={2}
                 className="w-full bg-transparent border-b border-card-border py-3 text-lg text-foreground placeholder:text-muted/40 focus:outline-none focus:border-accent transition-colors resize-none"
@@ -310,31 +277,31 @@ export default function OnboardingFlow({
                 placeholder="https://tiktok.com/@creator/video/..."
                 value={tiktok}
                 onChange={(e) => setTiktok(e.target.value)}
-                onKeyDown={(e) =>
-                  handleKeyDown(e, () => runScan(), () => runScan())
-                }
+                onKeyDown={(e) => handleKeyDown(e, () => launch(), () => launch())}
                 className="w-full bg-transparent border-b border-card-border py-3 text-lg text-foreground placeholder:text-muted/40 focus:outline-none focus:border-accent transition-colors"
               />
               <div className="flex items-center justify-between mt-8">
                 <button
                   onClick={() => goBack("tiktok")}
                   className="text-sm text-muted hover:text-foreground transition-colors cursor-pointer"
+                  disabled={submitting}
                 >
                   Back
                 </button>
                 <div className="flex items-center gap-3">
                   <button
-                    onClick={() => runScan()}
-                    className="text-sm text-muted hover:text-foreground transition-colors cursor-pointer"
+                    onClick={() => launch()}
+                    className="text-sm text-muted hover:text-foreground transition-colors cursor-pointer disabled:opacity-50"
+                    disabled={submitting}
                   >
                     Skip
                   </button>
                   <button
-                    onClick={() => runScan()}
-                    disabled={!tiktok.trim()}
-                    className="inline-flex items-center gap-2 bg-accent hover:bg-accent-hover disabled:opacity-30 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer disabled:cursor-not-allowed"
+                    onClick={() => launch()}
+                    disabled={submitting}
+                    className="inline-flex items-center gap-2 bg-accent hover:bg-accent-hover disabled:opacity-50 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer disabled:cursor-wait"
                   >
-                    Analyze
+                    {submitting ? "Launching…" : "Launch agents"}
                     <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -347,74 +314,80 @@ export default function OnboardingFlow({
               key="scanning"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ duration: 0.6 }}
-              className="fixed top-6 left-6 z-20 w-[380px] max-h-[calc(100vh-3rem)] glass-panel rounded-sm flex flex-col overflow-hidden"
+              transition={{ duration: 0.5 }}
+              className="w-full max-w-xl"
             >
-              <div className="flex items-center gap-2 px-5 py-4 border-b" style={{ borderColor: "rgba(120,120,120,0.15)" }}>
-                {!scanDone && <Loader2 className="w-3.5 h-3.5 text-accent animate-spin" />}
-                {scanDone && <div className="w-2 h-2 rounded-full bg-success" />}
-                <h2
-                  className="uppercase tracking-[0.08em]"
-                  style={{ fontFamily: "var(--font-display)", fontSize: "11px", color: "#d0d0d0" }}
-                >
-                  {scanDone ? "STRATEGY READY" : "ANALYZING PRODUCT"}
+              <div className="flex items-center gap-2 mb-6">
+                {!allReady ? (
+                  <Loader2 className="w-4 h-4 text-accent animate-spin" />
+                ) : (
+                  <div className="w-2 h-2 rounded-full bg-success" />
+                )}
+                <h2 className="text-xs font-mono uppercase tracking-[0.18em] text-muted">
+                  {allReady ? "GRAPH READY" : "ANALYZING NICHES"}
                 </h2>
+                {readyNiches > 0 && (
+                  <span className="text-[10px] font-mono uppercase tracking-widest text-muted/60 ml-auto">
+                    {readyNiches} niche{readyNiches === 1 ? "" : "s"} ready
+                  </span>
+                )}
               </div>
 
-              <div className="flex-1 min-h-0 overflow-y-auto px-5 py-3 space-y-1.5 font-mono text-[11px] leading-relaxed">
+              <div className="bg-card-bg/50 border border-card-border rounded-md px-5 py-4 h-[320px] overflow-y-auto font-mono text-[12px] leading-relaxed space-y-1.5">
                 {logLines.map((line, i) => {
-                  const isLast = line.includes("complete");
-                  const isPersonal = line.includes("personal.md");
+                  const color =
+                    line.level === "success"
+                      ? "text-success"
+                      : line.level === "warn"
+                        ? "text-accent"
+                        : line.level === "error"
+                          ? "text-danger"
+                          : "text-foreground/70";
+                  const glyph =
+                    line.level === "success"
+                      ? "✓"
+                      : line.level === "error"
+                        ? "✗"
+                        : "›";
                   return (
                     <motion.div
                       key={i}
                       initial={{ opacity: 0, x: -6 }}
                       animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.25 }}
+                      transition={{ duration: 0.2 }}
                       className="flex items-start gap-2"
                     >
-                      <span className={isLast ? "text-success" : isPersonal ? "text-accent" : "text-muted/50"}>
-                        {isLast ? "✓" : isPersonal ? "+" : "›"}
-                      </span>
-                      <span className={isLast ? "text-success" : isPersonal ? "text-accent" : "text-foreground/70"}>
-                        {line}
-                      </span>
+                      <span className={color}>{glyph}</span>
+                      <span className={color}>{line.text}</span>
                     </motion.div>
                   );
                 })}
                 {currentTyping && (
                   <div className="flex items-start gap-2">
                     <span className="text-accent">›</span>
-                    <span className="text-foreground/70 cursor-blink">{currentTyping}</span>
+                    <span className="text-foreground/70">{currentTyping}</span>
                   </div>
                 )}
                 <div ref={logEndRef} />
               </div>
 
-              {scanDone && (
-                <motion.div
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.2 }}
-                  className="px-5 py-3 border-t flex items-center gap-2"
-                  style={{ borderColor: "rgba(120,120,120,0.15)" }}
+              <div className="mt-6 flex items-center justify-between">
+                <p className="text-xs text-muted/60">
+                  {allReady
+                    ? "Strategy synthesized across all niches."
+                    : "Our agents are scanning hooks, creators, and patterns on TikTok."}
+                </p>
+                <button
+                  onClick={() =>
+                    runId && router.push(`/graph?runId=${encodeURIComponent(runId)}`)
+                  }
+                  disabled={!allReady && readyNiches === 0}
+                  className="inline-flex items-center gap-2 bg-accent hover:bg-accent-hover disabled:opacity-30 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer disabled:cursor-not-allowed"
                 >
-                  <button
-                    onClick={() => scanResultRef.current && onComplete(scanResultRef.current)}
-                    className="inline-flex items-center gap-1.5 bg-accent hover:bg-accent-hover text-white px-3.5 py-2 rounded-md text-xs font-medium transition-colors cursor-pointer"
-                  >
-                    View Strategy
-                    <ArrowRight className="w-3 h-3" />
-                  </button>
-                  <button
-                    onClick={downloadPersonalMd}
-                    className="inline-flex items-center gap-1.5 text-muted hover:text-foreground px-2.5 py-2 rounded-md text-xs font-medium transition-colors cursor-pointer"
-                  >
-                    <Download className="w-3 h-3" />
-                    persona.md
-                  </button>
-                </motion.div>
-              )}
+                  View live graph
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -446,9 +419,7 @@ function StepNav({
       ) : (
         <p className="text-xs text-muted/60">
           Press{" "}
-          <kbd className="px-1.5 py-0.5 bg-subtle rounded text-muted text-[11px]">
-            Enter
-          </kbd>{" "}
+          <kbd className="px-1.5 py-0.5 bg-subtle rounded text-muted text-[11px]">Enter</kbd>{" "}
           to continue
         </p>
       )}
