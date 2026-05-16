@@ -36,7 +36,11 @@ def main():
     parser.add_argument("--count", "-n", type=int, help="Number of topics")
     parser.add_argument("--output-dir", "-o", default="output", help="Root output directory")
     parser.add_argument("--skip-images", action="store_true", help="Skip image generation (reuse existing)")
-    parser.add_argument("--reference", metavar="URL", help="TikTok carousel URL to use as style reference")
+    parser.add_argument("--html", action="store_true", help="Use HTML/CSS compositor (pill-box style) instead of Pillow")
+    parser.add_argument("--reference", metavar="URL", action="append", dest="references",
+                        help="TikTok post URL to use as style reference (repeat for multiple)")
+    parser.add_argument("--account", metavar="URL", help="TikTok account URL — scrape top posts as reference")
+    parser.add_argument("--top", type=int, default=7, help="Number of top posts to scrape from --account (default: 7)")
     parser.add_argument("topics", nargs="*", help="Optional topic seed words")
     args = parser.parse_args()
 
@@ -62,12 +66,35 @@ def main():
     bg_dir = out / "backgrounds"
     final_dir = out / "final"
 
+    # Step 0 (optional): Scrape top posts from account as reference
+    reference_urls = list(args.references or [])
+    if args.account:
+        print(f"\n{'='*60}")
+        print(f"  Step 0 — Scraping top {args.top} posts from {args.account}")
+        print(f"{'='*60}")
+        result = subprocess.run(
+            ["python", "scrape_tiktok_account.py", "--url", args.account, "--top", str(args.top)],
+            capture_output=True, text=True,
+        )
+        # stderr has progress info, stdout has the URLs
+        if result.stderr:
+            print(result.stderr, end="")
+        if result.returncode != 0:
+            print("Warning: scraper failed — continuing without account reference.", file=sys.stderr)
+        else:
+            scraped = [u.strip() for u in result.stdout.splitlines() if u.strip().startswith("http")]
+            if not scraped:
+                print("Warning: no post URLs found — continuing without account reference.", file=sys.stderr)
+            else:
+                print(f"  Using {len(scraped)} scraped posts as reference.")
+                reference_urls = scraped + reference_urls
+
     # Step 1: Generate content
     content_cmd = ["python", "generate_content.py", "--persona", args.persona, "--output-dir", str(out)]
     if args.count:
         content_cmd += ["--count", str(args.count)]
-    if args.reference:
-        content_cmd += ["--reference", args.reference]
+    for ref_url in reference_urls:
+        content_cmd += ["--reference", ref_url]
     content_cmd += args.topics
     run(content_cmd, "Step 1/3 — Generating slide content (Claude)")
 
@@ -77,21 +104,22 @@ def main():
             "python", "generate_images.py",
             "--data", str(slide_data),
             "--output-dir", str(bg_dir),
-            "--persona", args.persona,
         ]
         run(images_cmd, "Step 2/3 — Generating background images (Gemini)")
     else:
         print("\nStep 2/3 — Skipping image generation (--skip-images)")
 
     # Step 3: Composite
+    compositor = "composite_html.py" if args.html else "composite.py"
+    compositor_label = "HTML/CSS + Playwright" if args.html else "Pillow"
     composite_cmd = [
-        "python", "composite.py",
+        "python", compositor,
         "--data", str(slide_data),
         "--bg-dir", str(bg_dir),
         "--output-dir", str(final_dir),
         "--persona", args.persona,
     ]
-    run(composite_cmd, "Step 3/3 — Compositing text onto images (Pillow)")
+    run(composite_cmd, f"Step 3/3 — Compositing text onto images ({compositor_label})")
 
     # Summary
     final_slides = list(final_dir.rglob("slide_*.png"))

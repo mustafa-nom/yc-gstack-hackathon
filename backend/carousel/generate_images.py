@@ -2,8 +2,12 @@
 """
 Generate background images for each carousel slide using Gemini.
 
-Reads persona.yaml for image prompts (title_prompt + scene_variety for content slides).
-Saves to output/backgrounds/<slug>/slide_01.png ... slide_N.png.
+If reference_analysis.json exists alongside slide_data.json (written by generate_content.py
+when --reference / --account is used), image prompts are built by blending the reference's
+gemini_prompt_fragment (the aesthetic extracted from the real TikTok account) with the
+persona's visual_identity fields (color_palette, aesthetic_keywords, vibe, scene_elements).
+
+Falls back to persona-only prompts (title_prompt + scene_variety) when no analysis is found.
 
 Usage:
     python generate_images.py [--data output/slide_data.json] [--output-dir output/backgrounds]
@@ -18,7 +22,6 @@ import os
 import sys
 from pathlib import Path
 
-import yaml
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
@@ -58,28 +61,34 @@ async def generate_image(client, prompt, aspect_ratio):
                 return None
 
 
-def build_prompts(n_content_slides, persona):
-    img_cfg = persona["image_generation"]
-    base = img_cfg.get("base_prompt", "").strip()
-    title_p = img_cfg.get("title_prompt", "").strip()
-    scenes = img_cfg.get("scene_variety", [])
-
-    title_prompt = f"{title_p}. {base}" if base else title_p
-
-    content_prompts = []
-    for i in range(n_content_slides):
-        scene = scenes[i % len(scenes)] if scenes else base
-        content_prompts.append(f"{scene}. {base}" if base and scene != base else scene)
-
-    return title_prompt, content_prompts
+_BASE_PROMPT = (
+    "Candid iPhone photo, no text, no watermark, no phone frame, "
+    "full bleed edge-to-edge, photorealistic, natural grain"
+)
 
 
-async def generate_topic_images(client, slug, n_slides, persona, output_dir, aspect_ratio):
+def build_prompts(n_content_slides, reference_analysis=None):
+    ref_frag = (
+        reference_analysis.get("background", {}).get("gemini_prompt_fragment", "")
+        if reference_analysis
+        else ""
+    )
+
+    if ref_frag:
+        prompt = f"{ref_frag}. {_BASE_PROMPT}"
+        print(f"  Image prompts: reference mode — {ref_frag[:80]}...")
+        return prompt, [prompt] * n_content_slides
+    else:
+        print("  Image prompts: generic mode (no reference analysis found)")
+        return _BASE_PROMPT, [_BASE_PROMPT] * n_content_slides
+
+
+async def generate_topic_images(client, slug, n_slides, output_dir, aspect_ratio, reference_analysis=None):
     topic_dir = output_dir / slug
     topic_dir.mkdir(parents=True, exist_ok=True)
 
     n_content = n_slides - 1  # slide 1 is title
-    title_prompt, content_prompts = build_prompts(n_content, persona)
+    title_prompt, content_prompts = build_prompts(n_content, reference_analysis)
 
     all_prompts = [title_prompt] + content_prompts
     print(f"  [{slug}] {n_slides} slides...")
@@ -104,14 +113,15 @@ async def run(args):
         print(f"Error: {data_path} not found. Run generate_content.py first.", file=sys.stderr)
         sys.exit(1)
 
-    persona_path = Path(args.persona)
-    if not persona_path.exists():
-        print(f"Error: {persona_path} not found.", file=sys.stderr)
-        sys.exit(1)
-
     data = json.loads(data_path.read_text())
-    persona = yaml.safe_load(persona_path.read_text())
     topics = data["topics"]
+
+    # Auto-load reference analysis produced by generate_content.py (same dir as slide_data.json)
+    analysis_path = data_path.parent / "reference_analysis.json"
+    reference_analysis = None
+    if analysis_path.exists():
+        reference_analysis = json.loads(analysis_path.read_text())
+        print(f"  Loaded reference analysis from {analysis_path}")
 
     filter_slugs = set(args.topics.split(",")) if args.topics else None
     if filter_slugs:
@@ -120,7 +130,14 @@ async def run(args):
             print(f"No topics matched: {args.topics}", file=sys.stderr)
             sys.exit(1)
 
-    aspect_ratio = persona.get("image_generation", {}).get("aspect_ratio", "9:16")
+    aspect_ratio = (
+        reference_analysis.get("format", {}).get("aspect_ratio", "9:16")
+        if reference_analysis else "9:16"
+    )
+    n_slides_per_topic = (
+        reference_analysis.get("format", {}).get("slides_per_carousel", 6)
+        if reference_analysis else 6
+    )
 
     api_key = args.api_key or os.environ.get("GEMINI_API_KEY")
     if not api_key:
@@ -131,7 +148,6 @@ async def run(args):
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    n_slides_per_topic = persona.get("content", {}).get("slides_per_carousel", 6)
     total_expected = len(topics) * n_slides_per_topic
     total_saved = 0
 
@@ -140,7 +156,7 @@ async def run(args):
 
     for i, topic in enumerate(topics):
         saved = await generate_topic_images(
-            client, topic["slug"], n_slides_per_topic, persona, output_dir, aspect_ratio
+            client, topic["slug"], n_slides_per_topic, output_dir, aspect_ratio, reference_analysis
         )
         total_saved += saved
         if i < len(topics) - 1:
@@ -156,7 +172,6 @@ def main():
     parser = argparse.ArgumentParser(description="Generate slide background images via Gemini")
     parser.add_argument("--data", default="output/slide_data.json")
     parser.add_argument("--output-dir", "-o", default="output/backgrounds")
-    parser.add_argument("--persona", default="persona.yaml")
     parser.add_argument("--topics", help="Comma-separated slugs to regenerate")
     parser.add_argument("--api-key")
     args = parser.parse_args()
