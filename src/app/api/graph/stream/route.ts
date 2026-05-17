@@ -24,23 +24,28 @@ export async function GET(req: Request) {
       for (const event of graphBus.replay(runId)) send(event);
       const unsubscribe = graphBus.subscribe(runId, send);
 
-      const heartbeat = setInterval(() => {
-        try {
-          controller.enqueue(encoder.encode(`: heartbeat\n\n`));
-        } catch {
-          clearInterval(heartbeat);
-        }
-      }, 15_000);
-
-      const abort = () => {
+      let closed = false;
+      const teardown = () => {
+        if (closed) return;
+        closed = true;
         clearInterval(heartbeat);
         unsubscribe();
+        req.signal.removeEventListener("abort", teardown);
         try {
           controller.close();
         } catch {}
       };
 
-      req.signal.addEventListener("abort", abort);
+      const heartbeat = setInterval(() => {
+        try {
+          controller.enqueue(encoder.encode(`: heartbeat\n\n`));
+        } catch {
+          // Controller died — tear everything down, not just the interval.
+          teardown();
+        }
+      }, 15_000);
+
+      req.signal.addEventListener("abort", teardown);
     },
   });
 
