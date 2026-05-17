@@ -7,6 +7,16 @@ async function ensure(dir: string): Promise<void> {
   await fs.mkdir(dir, { recursive: true });
 }
 
+// Resolve `rel` against BASE and reject anything that escapes the directory.
+// path.join does not block "../" — only path.resolve + a prefix check does.
+function resolveSafe(rel: string): string {
+  const full = path.resolve(BASE, rel);
+  if (full !== BASE && !full.startsWith(BASE + path.sep)) {
+    throw new Error(`path traversal blocked: ${rel}`);
+  }
+  return full;
+}
+
 export type UserState = {
   website: string;
   description?: string;
@@ -40,14 +50,14 @@ export async function writeUserState(state: UserState): Promise<void> {
 }
 
 export async function writeJson(rel: string, data: unknown): Promise<void> {
-  const full = path.join(BASE, rel);
+  const full = resolveSafe(rel);
   await ensure(path.dirname(full));
   await fs.writeFile(full, JSON.stringify(data, null, 2), "utf-8");
 }
 
 export async function readJson<T>(rel: string): Promise<T | null> {
   try {
-    const raw = await fs.readFile(path.join(BASE, rel), "utf-8");
+    const raw = await fs.readFile(resolveSafe(rel), "utf-8");
     return JSON.parse(raw) as T;
   } catch {
     return null;
@@ -56,7 +66,7 @@ export async function readJson<T>(rel: string): Promise<T | null> {
 
 export async function listJson(relDir: string): Promise<string[]> {
   try {
-    const entries = await fs.readdir(path.join(BASE, relDir));
+    const entries = await fs.readdir(resolveSafe(relDir));
     return entries.filter((e) => e.endsWith(".json"));
   } catch {
     return [];
@@ -64,5 +74,5 @@ export async function listJson(relDir: string): Promise<string[]> {
 }
 
 export function brainpostPath(rel: string): string {
-  return path.join(BASE, rel);
+  return resolveSafe(rel);
 }
