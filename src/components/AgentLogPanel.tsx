@@ -126,6 +126,10 @@ export function AgentLogPanel({
           ? `Mock designs ready`
           : `Designs ready (exit ${result.exitCode})`,
       });
+      sessionStorage.setItem(
+        "brainpost.lastGeneration",
+        JSON.stringify({ niche, contextLog: result.contextLog ?? [], mocked: result.mocked }),
+      );
       router.push("/content");
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

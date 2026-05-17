@@ -31,10 +31,23 @@ export default function ContentStudio({
   const [count, setCount] = useState(1);
 
   useEffect(() => {
+    const raw = sessionStorage.getItem("brainpost.lastGeneration");
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw) as { niche: string; contextLog: string[]; mocked: boolean };
+        setGenLogs(parsed.contextLog ?? []);
+        setGenState("done");
+        sessionStorage.removeItem("brainpost.lastGeneration");
+      } catch {
+        // ignore malformed
+      }
+      return;
+    }
     if (!readCachedCarousel(count)) {
       prewarmCarousel({ count, persona: persona ?? {} });
     }
-  }, [count, persona]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const generateImages = async ({ force }: { force?: boolean } = {}) => {
     if (!force) {
@@ -167,6 +180,35 @@ export default function ContentStudio({
                     <span>{log}</span>
                   </div>
                 ))}
+              </div>
+            </motion.div>
+          )}
+
+          {/* Done — context log only (no images) */}
+          {genState === "done" && imageUrls.length === 0 && genLogs.length > 0 && (
+            <motion.div
+              key="done-logs"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="border border-card-border rounded-xl p-6"
+            >
+              <p className="text-[10px] font-mono uppercase tracking-widest text-success mb-4">
+                Pipeline complete
+              </p>
+              <div className="font-mono text-xs space-y-1.5 max-h-60 overflow-y-auto">
+                {genLogs.map((log, i) => {
+                  const [key, ...rest] = log.split(": ");
+                  return (
+                    <div key={i} className="flex gap-2 text-muted/70">
+                      <span className="text-accent shrink-0">›</span>
+                      <span>
+                        <span className="text-muted/50">{key}:</span>{" "}
+                        {rest.join(": ")}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </motion.div>
           )}

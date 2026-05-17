@@ -45,6 +45,10 @@ export function NicheStrategyPanel({
           : `Designs ready (exit ${result.exitCode})`,
         contextLog: result.contextLog,
       });
+      sessionStorage.setItem(
+        "brainpost.lastGeneration",
+        JSON.stringify({ niche, contextLog: result.contextLog ?? [], mocked: result.mocked }),
+      );
       router.push("/content");
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
