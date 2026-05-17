@@ -45,11 +45,20 @@ export default function ContentStudio({
         const topics = topicsLine
           ? Array.from(topicsLine.matchAll(/"([^"]+)"/g)).map((m) => m[1])
           : [];
-        const slides = [
-          parsed.niche,
-          ...topics,
-          "Save this for later →",
-        ].filter(Boolean).slice(0, 6);
+        const niche = parsed.niche ?? "";
+        const realTopics = topics.filter(
+          (t) => !t.includes("[No videos") && !t.includes("placeholder"),
+        );
+        const slideTopics =
+          realTopics.length > 0
+            ? realTopics
+            : [
+                `Why 90% of ${niche} advice misses the point`,
+                `The ${niche} metric nobody tracks`,
+                `How top performers approach ${niche}`,
+                `What 30 days of ${niche} data actually shows`,
+              ];
+        const slides = [slideTopics[0], ...slideTopics.slice(1), "Follow for more →"].slice(0, 6);
         setMockSlides(slides);
         setGenState("done");
         sessionStorage.removeItem("brainpost.lastGeneration");
@@ -260,11 +269,11 @@ export default function ContentStudio({
                   {genLogs.map((log, i) => {
                     const [key, ...rest] = log.split(": ");
                     return (
-                      <div key={i} className="flex gap-2 text-muted/60">
+                      <div key={i} className="flex gap-2">
                         <span className="text-accent shrink-0">›</span>
                         <span>
-                          <span className="text-muted/50">{key}:</span>{" "}
-                          {rest.join(": ")}
+                          <span className="text-muted">{key}:</span>{" "}
+                          <span className="text-foreground/80">{rest.join(": ")}</span>
                         </span>
                       </div>
                     );
@@ -361,15 +370,6 @@ function StrategyCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-const SLIDE_GRADIENTS = [
-  "linear-gradient(160deg, #0f0f14 0%, #1a1025 100%)",
-  "linear-gradient(160deg, #0d1117 0%, #0f1a2e 100%)",
-  "linear-gradient(160deg, #0f1408 0%, #182312 100%)",
-  "linear-gradient(160deg, #180f0f 0%, #2a1410 100%)",
-  "linear-gradient(160deg, #110e1a 0%, #1c1030 100%)",
-  "linear-gradient(160deg, #0d1318 0%, #0f2028 100%)",
-];
-
 function MockSlide({
   index,
   total,
@@ -383,7 +383,6 @@ function MockSlide({
 }) {
   const isFirst = index === 0;
   const isLast = index === total - 1;
-  const gradient = SLIDE_GRADIENTS[index % SLIDE_GRADIENTS.length];
 
   return (
     <motion.div
@@ -391,40 +390,59 @@ function MockSlide({
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -20 }}
       transition={{ duration: 0.2 }}
-      className="relative w-56 rounded-2xl overflow-hidden shadow-2xl flex-shrink-0"
-      style={{ aspectRatio: "9/16", background: gradient }}
+      className="relative w-56 rounded-2xl overflow-hidden shadow-2xl flex-shrink-0 bg-black"
+      style={{ aspectRatio: "9/16" }}
     >
-      {/* Noise texture overlay */}
-      <div className="absolute inset-0 opacity-[0.03]"
-        style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E\")" }}
-      />
-
-      {/* Slide counter */}
-      <div className="absolute top-4 right-4 text-[10px] font-mono text-white/40">
-        {index + 1}/{total}
-      </div>
-
-      {/* Content */}
-      <div className="absolute inset-0 flex flex-col justify-center px-5">
+      {/* Top bar: slide counter */}
+      <div className="absolute top-5 left-5 right-5 flex items-center justify-between">
+        <span className="text-[10px] font-mono text-white/30 tracking-widest">
+          {String(index + 1).padStart(2, "0")}/{String(total).padStart(2, "0")}
+        </span>
         {isFirst && (
-          <p className="text-[9px] font-mono uppercase tracking-widest text-white/40 mb-3">
-            {niche}
-          </p>
-        )}
-        <p className={`font-semibold text-white leading-snug ${isFirst ? "text-lg" : isLast ? "text-base" : "text-sm"}`}>
-          {text}
-        </p>
-        {!isFirst && !isLast && (
-          <div className="mt-3 h-px w-8 bg-white/20" />
+          <span className="text-[8px] font-mono uppercase tracking-widest text-white/20">
+            swipe →
+          </span>
         )}
       </div>
 
-      {/* Bottom bar */}
-      <div className="absolute bottom-0 left-0 right-0 px-4 py-3 flex items-center gap-2"
-        style={{ background: "linear-gradient(to top, rgba(0,0,0,0.6), transparent)" }}
+      {/* Main content */}
+      <div className="absolute inset-0 flex flex-col justify-center px-6">
+        {isFirst ? (
+          <>
+            <p className="text-[9px] font-mono uppercase tracking-[0.2em] text-white/35 mb-4">
+              {niche}
+            </p>
+            <p className="text-xl font-bold text-white leading-tight">
+              {text}
+            </p>
+            <div className="mt-5 h-[2px] w-10 bg-[var(--accent)]" />
+          </>
+        ) : isLast ? (
+          <>
+            <div className="mb-4 h-[2px] w-10 bg-[var(--accent)]" />
+            <p className="text-base font-semibold text-white leading-snug">{text}</p>
+            <p className="mt-3 text-[10px] text-white/40 font-mono">@chey.jada</p>
+          </>
+        ) : (
+          <>
+            <p className="text-[10px] font-mono text-white/30 mb-3 tracking-widest">
+              TIP {index}
+            </p>
+            <p className="text-base font-semibold text-white leading-snug">{text}</p>
+            <div className="mt-4 h-px w-full bg-white/8" />
+          </>
+        )}
+      </div>
+
+      {/* Bottom handle */}
+      <div
+        className="absolute bottom-0 left-0 right-0 px-5 py-4"
+        style={{ background: "linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%)" }}
       >
-        <div className="w-5 h-5 rounded-full bg-accent/80" />
-        <span className="text-[9px] text-white/50 font-mono">@brainpost</span>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded-full bg-[var(--accent)]" />
+          <span className="text-[9px] text-white/50 font-mono">@chey.jada</span>
+        </div>
       </div>
     </motion.div>
   );
