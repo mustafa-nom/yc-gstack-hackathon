@@ -115,6 +115,10 @@ export type TransformWriteResult = {
 // creators / pattern pages whose content barely differs across niches.
 const writtenSlugsByRun = new Map<string, Set<string>>();
 
+export function clearWrittenSlugs(runId: string): void {
+  writtenSlugsByRun.delete(runId);
+}
+
 function markWritten(runId: string, slug: string): boolean {
   let set = writtenSlugsByRun.get(runId);
   if (!set) {

@@ -1,5 +1,10 @@
 import { runNicheIngestion, type NicheRunResult } from "./hog/worker";
 import { graphBus } from "./graph-bus";
+import { clearWrittenSlugs } from "./hog/transformer";
+
+// How long to keep per-run state alive after allReady so late SSE
+// reconnects can still replay the full event log.
+const RUN_RETENTION_MS = 60_000;
 
 export type OrchestrationInput = {
   runId: string;
@@ -42,5 +47,12 @@ export function kickoffOrchestrator(
   if (existing) return existing;
   const p = runOrchestrator(input);
   inflight.set(input.runId, p);
+  p.finally(() => {
+    setTimeout(() => {
+      inflight.delete(input.runId);
+      graphBus.clear(input.runId);
+      clearWrittenSlugs(input.runId);
+    }, RUN_RETENTION_MS);
+  });
   return p;
 }
