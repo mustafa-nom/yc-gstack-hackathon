@@ -67,43 +67,52 @@ export const HogOperationResult = z
   .passthrough();
 export type HogOperationResult = z.infer<typeof HogOperationResult>;
 
+// OpenAI's structured-output strict mode requires every property in
+// `properties` to be listed in `required`. To express "optional" the
+// field must be nullable. We mark everything nullable for the LLM and
+// coalesce null → "" / [] / undefined so downstream code keeps its
+// existing happy-path types.
+const nstr = () => z.string().nullable().transform((v) => v ?? "");
+const narr = <T extends z.ZodTypeAny>(inner: T) =>
+  z.array(inner).nullable().transform((v) => v ?? []);
+
 export const HookEntry = z.object({
   text: z.string(),
   archetype: z.string(),
   creator_handle: z.string(),
-  source_url: z.string().optional(),
-  why_it_works: z.string().optional(),
+  source_url: nstr(),
+  why_it_works: nstr(),
 });
 export type HookEntry = z.infer<typeof HookEntry>;
 
 export const FormatEntry = z.object({
   name: z.string(),
   structure: z.string(),
-  when_to_use: z.string().optional(),
-  example_creator_handles: z.array(z.string()).optional(),
+  when_to_use: nstr(),
+  example_creator_handles: narr(z.string()),
 });
 export type FormatEntry = z.infer<typeof FormatEntry>;
 
 export const Hashtags = z.object({
   primary_cluster: z.array(z.string()),
-  trending: z.array(z.string()).optional(),
+  trending: narr(z.string()),
 });
 
 export const Voice = z.object({
   tone: z.string(),
-  pacing: z.string().optional(),
-  avoid: z.array(z.string()).optional(),
+  pacing: nstr(),
+  avoid: narr(z.string()),
 });
 
 export const AntiPattern = z.object({
   pattern: z.string(),
-  why_it_fails: z.string().optional(),
+  why_it_fails: nstr(),
 });
 
 export const CreatorEntry = z.object({
   handle: z.string(),
-  style: z.string().optional(),
-  posting_cadence: z.string().optional(),
+  style: nstr(),
+  posting_cadence: nstr(),
 });
 export type CreatorEntry = z.infer<typeof CreatorEntry>;
 
@@ -111,11 +120,11 @@ export const StrategySchema = z.object({
   niche_slug: z.string(),
   niche_summary: z.string(),
   hooks: z.array(HookEntry).min(1),
-  formats: z.array(FormatEntry).optional().default([]),
+  formats: narr(FormatEntry),
   hashtags: Hashtags,
-  voice: Voice.optional(),
-  anti_patterns: z.array(AntiPattern).optional().default([]),
-  creators: z.array(CreatorEntry).optional().default([]),
+  voice: Voice.nullable().transform((v) => v ?? undefined),
+  anti_patterns: narr(AntiPattern),
+  creators: narr(CreatorEntry),
 });
 export type Strategy = z.infer<typeof StrategySchema>;
 

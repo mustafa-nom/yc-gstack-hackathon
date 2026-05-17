@@ -165,7 +165,7 @@ export async function transformAndWrite(
   }
   for (const h of strategy.hooks) {
     if (!creatorByHandle.has(h.creator_handle)) {
-      creatorByHandle.set(h.creator_handle, { handle: h.creator_handle });
+      creatorByHandle.set(h.creator_handle, { handle: h.creator_handle, style: "", posting_cadence: "" });
     }
   }
 
