@@ -29,7 +29,7 @@ export async function generateDesigns(input: {
         "[mock] generate_carousel.py would run with:",
         `  persona: ${brief.personaPath}`,
         `  topics: ${brief.topics.join(", ")}`,
-        brief.referenceTiktok ? `  reference: ${brief.referenceTiktok}` : "",
+        brief.referenceTiktok ? `  account: ${brief.referenceTiktok}` : "",
         "",
         "Set RUN_REAL_DESIGN_PIPELINE=1 to invoke the real pipeline.",
       ]
@@ -44,7 +44,7 @@ export async function generateDesigns(input: {
     "generate_carousel.py",
     "--persona",
     brief.personaPath,
-    ...(brief.referenceTiktok ? ["--reference", brief.referenceTiktok] : []),
+    ...(brief.referenceTiktok ? ["--account", brief.referenceTiktok] : []),
     ...brief.topics,
   ];
 

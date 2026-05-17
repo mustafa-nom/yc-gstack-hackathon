@@ -63,14 +63,18 @@ export default function OnboardingFlow() {
     }, 14);
   }, []);
 
+  const DEFAULT_TIKTOK = "https://www.tiktok.com/@chey.jada";
+
   const launch = useCallback(async () => {
     if (submitting) return;
     setSubmitting(true);
+    const effectiveTiktok = tiktok.trim() || DEFAULT_TIKTOK;
+    if (!tiktok.trim()) setTiktok(DEFAULT_TIKTOK);
     try {
       const result = await startOnboarding({
         website,
         description,
-        referenceTiktok: tiktok,
+        referenceTiktok: effectiveTiktok,
       });
       setRunId(result.runId);
       setStep("scanning");
@@ -260,15 +264,15 @@ export default function OnboardingFlow() {
                 {String(inputStepNum).padStart(2, "0")}
               </p>
               <h2 className="text-2xl font-semibold tracking-tight mb-2">
-                Drop a reference TikTok
+                Reference TikTok account
               </h2>
               <p className="text-muted text-sm mb-8">
-                A TikTok URL that captures the style or energy you&apos;re going for.
+                A TikTok account whose visual style you want to match. We&apos;ll analyze their top posts.
               </p>
               <input
                 ref={inputRef}
                 type="url"
-                placeholder="https://tiktok.com/@creator/video/..."
+                placeholder="https://tiktok.com/@creator"
                 value={tiktok}
                 onChange={(e) => setTiktok(e.target.value)}
                 onKeyDown={(e) => handleKeyDown(e, () => launch(), () => launch())}
