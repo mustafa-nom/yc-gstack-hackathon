@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import { ArrowRight, Loader2, Check, Send } from "lucide-react";
 import { generateDesigns } from "@/app/actions/generate-designs";
@@ -24,6 +25,7 @@ export function NicheStrategyPanel({
 }) {
   const [rowState, setRowState] = useState<Record<string, NicheRowState>>({});
   const [, startTransition] = useTransition();
+  const router = useRouter();
 
   function setStatus(niche: string, patch: Partial<NicheRowState>) {
     setRowState((prev) => {
@@ -44,6 +46,7 @@ export function NicheStrategyPanel({
             : `Designs ready (exit ${result.exitCode})`,
           contextLog: result.contextLog,
         });
+        router.push("/content");
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         setStatus(niche, { status: "ready", message: `error: ${msg}` });
