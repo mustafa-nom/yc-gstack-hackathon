@@ -14,10 +14,7 @@ import {
 } from "lucide-react";
 import type { GraphEvent } from "@/lib/graph-bus";
 import { generateDesigns } from "@/app/actions/generate-designs";
-// pushToTiktok lands in Phase 3 — stubbed for now.
-const pushToTiktok = async (_: { nicheSlug: string }): Promise<{ message: string }> => {
-  throw new Error("pushToTiktok is not enabled in this build");
-};
+import { pushToTiktok } from "@/app/actions/push-to-tiktok";
 import { nicheSlugFromName } from "@/lib/slugs";
 
 type LogLine = {
