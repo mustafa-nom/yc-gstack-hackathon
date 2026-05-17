@@ -3,9 +3,16 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { ArrowRight, Zap, Loader2 } from "lucide-react";
 import { startOnboarding } from "@/app/actions/onboard";
 import type { GraphEvent } from "@/lib/graph-bus";
+import { setStoredRunId } from "@/lib/run-context";
+
+const LiveGraph = dynamic(
+  () => import("@/components/LiveGraph").then((m) => m.LiveGraph),
+  { ssr: false },
+);
 
 const STEP_ORDER = [
   "welcome",
@@ -43,6 +50,7 @@ export default function OnboardingFlow() {
     return () => clearTimeout(timer);
   }, [step]);
 
+  const drainRef = useRef<() => void>(() => {});
   const drainTypeQueue = useCallback(() => {
     if (typingRef.current) return;
     const next = typeQueueRef.current.shift();
@@ -58,10 +66,13 @@ export default function OnboardingFlow() {
         setCurrentTyping("");
         setLogLines((prev) => [...prev, { text, level }]);
         typingRef.current = false;
-        setTimeout(drainTypeQueue, 80);
+        setTimeout(() => drainRef.current(), 80);
       }
     }, 14);
   }, []);
+  useEffect(() => {
+    drainRef.current = drainTypeQueue;
+  }, [drainTypeQueue]);
 
   const DEFAULT_TIKTOK = "https://www.tiktok.com/@chey.jada";
 
@@ -77,6 +88,7 @@ export default function OnboardingFlow() {
         referenceTiktok: effectiveTiktok,
       });
       setRunId(result.runId);
+      setStoredRunId(result.runId);
       setStep("scanning");
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -158,7 +170,8 @@ export default function OnboardingFlow() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col relative">
+      {step === "scanning" && runId && <LiveGraph runId={runId} />}
       {showProgress && (
         <div className="fixed top-0 left-0 right-0 h-[2px] bg-subtle z-50">
           <motion.div
@@ -170,7 +183,7 @@ export default function OnboardingFlow() {
         </div>
       )}
 
-      <div className="flex-1 flex items-center justify-center px-6">
+      <div className="flex-1 flex items-center justify-center px-6 relative z-10">
         <AnimatePresence mode="wait">
           {step === "welcome" && (
             <motion.div key="welcome" {...motionProps} className="text-center max-w-md">

@@ -122,18 +122,6 @@ export async function runNicheIngestion(
     publish({ kind: "edgeAdded", edge });
   }
 
-  log("Queuing GBrain writes (compiled truth + timeline)");
-  void transformAndWrite(strategy, { runId, niche })
-    .then(() => {
-      publish({ kind: "phaseDone", niche, phase: "transform" });
-      log("GBrain pages written", "success");
-    })
-    .catch((err) => {
-      const msg = err instanceof Error ? err.message : String(err);
-      publish({ kind: "error", niche, message: `transform failed: ${msg}` });
-      log(`transform failed: ${msg}`, "error");
-    });
-
   publish({
     kind: "nodeUpdated",
     id: `niche:${nicheSlug}`,
@@ -154,6 +142,18 @@ export async function runNicheIngestion(
       },
     },
   });
+
+  log("Writing GBrain pages (compiled truth + timeline)");
+  try {
+    await transformAndWrite(strategy, { runId, niche });
+    publish({ kind: "phaseDone", niche, phase: "transform" });
+    log("GBrain pages written", "success");
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    publish({ kind: "error", niche, message: `transform failed: ${msg}` });
+    log(`transform failed: ${msg}`, "error");
+    return { niche, nicheSlug, strategy, degraded: true, error: msg };
+  }
 
   publish({ kind: "nicheReady", niche, nicheSlug });
   return { niche, nicheSlug, strategy, degraded: false };

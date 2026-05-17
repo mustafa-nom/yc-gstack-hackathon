@@ -115,6 +115,10 @@ export type TransformWriteResult = {
 // creators / pattern pages whose content barely differs across niches.
 const writtenSlugsByRun = new Map<string, Set<string>>();
 
+export function clearWrittenSlugs(runId: string): void {
+  writtenSlugsByRun.delete(runId);
+}
+
 function markWritten(runId: string, slug: string): boolean {
   let set = writtenSlugsByRun.get(runId);
   if (!set) {
@@ -161,7 +165,7 @@ export async function transformAndWrite(
   }
   for (const h of strategy.hooks) {
     if (!creatorByHandle.has(h.creator_handle)) {
-      creatorByHandle.set(h.creator_handle, { handle: h.creator_handle });
+      creatorByHandle.set(h.creator_handle, { handle: h.creator_handle, style: "", posting_cadence: "" });
     }
   }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, startTransition } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { ChevronLeft, ChevronRight, X, Eye, Heart, MessageCircle, Share2 } from "lucide-react";
 
@@ -122,16 +122,16 @@ function getWeekDays(monday: Date): Date[] {
 }
 
 export default function ContentCalendar() {
-  const [weekStart, setWeekStart] = useState<Date>(new Date(0));
-  const [mounted, setMounted] = useState(false);
+  // SSR returns null; client populates on mount via startTransition so the
+  // hydration sync doesn't trigger a cascading render (react-hooks/set-state-in-effect).
+  const [weekStart, setWeekStart] = useState<Date | null>(null);
   const [selected, setSelected] = useState<Post | null>(null);
 
   useEffect(() => {
-    setWeekStart(getMonday(new Date()));
-    setMounted(true);
+    startTransition(() => setWeekStart(getMonday(new Date())));
   }, []);
 
-  if (!mounted) return null;
+  if (!weekStart) return null;
 
   const days = getWeekDays(weekStart);
 

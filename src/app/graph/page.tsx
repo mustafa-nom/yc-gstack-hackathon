@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import type { GraphNode } from "@/lib/graph-bus";
 import { DossierPanel } from "@/components/DossierPanel";
-import { NicheStrategyPanel } from "@/components/NicheStrategyPanel";
 import { AgentLogPanel } from "@/components/AgentLogPanel";
+import { setStoredRunId } from "@/lib/run-context";
 
 const LiveGraph = dynamic(
   () => import("@/components/LiveGraph").then((m) => m.LiveGraph),
@@ -20,6 +20,10 @@ function GraphPageInner() {
   const [readyNiches, setReadyNiches] = useState<string[]>([]);
   const [allReady, setAllReady] = useState(false);
 
+  useEffect(() => {
+    if (runId) setStoredRunId(runId);
+  }, [runId]);
+
   if (!runId) {
     return (
       <div className="min-h-screen flex items-center justify-center text-muted">
@@ -27,6 +31,8 @@ function GraphPageInner() {
       </div>
     );
   }
+
+  const perfHref = `/performance?runId=${encodeURIComponent(runId)}`;
 
   return (
     <div className="min-h-screen relative bg-background overflow-hidden">
@@ -39,7 +45,7 @@ function GraphPageInner() {
         onAllReady={() => setAllReady(true)}
       />
 
-      <AgentLogPanel runId={runId} allReady={allReady} />
+      <AgentLogPanel runId={runId} allReady={allReady} niches={readyNiches} />
 
       <div className="fixed top-4 right-4 z-30 flex items-center gap-2 pointer-events-none">
         {readyNiches.length > 0 && (
@@ -50,25 +56,23 @@ function GraphPageInner() {
           </div>
         )}
         <a
-          href="/performance"
+          href={perfHref}
           className="pointer-events-auto bg-card-bg/80 border border-card-border rounded px-3 py-1.5 backdrop-blur-sm text-[10px] font-mono uppercase tracking-widest text-muted hover:text-foreground transition-colors"
         >
           Performance →
         </a>
       </div>
 
-      <div className="fixed bottom-5 left-[400px] z-20 pointer-events-none font-mono">
-        <p className="text-[28px] font-bold tracking-tight leading-none text-foreground/90">
+      <div className="fixed top-5 left-4 sm:left-[476px] lg:left-[536px] z-20 pointer-events-none font-mono">
+        <p className="text-[22px] font-bold tracking-tight leading-none text-foreground/90">
           BrainPost
         </p>
-        <p className="text-[10px] uppercase tracking-widest text-muted/60 mt-1">
+        <p className="text-[9px] uppercase tracking-widest text-muted/60 mt-1.5">
           live ingestion · niche graph
         </p>
       </div>
 
       <DossierPanel node={selected} onClose={() => setSelected(null)} />
-
-      <NicheStrategyPanel niches={readyNiches} visible={allReady} />
     </div>
   );
 }

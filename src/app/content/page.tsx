@@ -1,25 +1,25 @@
 import Link from "next/link";
 import ContentStudio from "@/components/ContentStudio";
 import NavHeader from "@/components/NavHeader";
-import { loadPerformanceFixture } from "@/app/actions/performance";
+import { readUserState } from "@/lib/state";
 import type { StrategyData } from "@/types";
 
-export default async function ContentPage() {
-  const rows = await loadPerformanceFixture();
-  const latest = rows[0]?.carousel;
+export const dynamic = "force-dynamic";
 
-  if (!latest) {
+export default async function ContentPage() {
+  const state = await readUserState();
+
+  if (!state || !state.niches?.length) {
     return (
       <div className="min-h-screen flex flex-col">
         <NavHeader />
         <main className="flex-1 flex items-center justify-center">
           <div className="text-center">
-            <p className="text-muted text-sm mb-4">No carousels generated yet.</p>
-            <Link
-              href="/"
-              className="text-accent text-sm hover:underline"
-            >
-              Start an onboarding run →
+            <p className="text-muted text-sm mb-4">
+              No onboarding run found. Start one to generate carousels.
+            </p>
+            <Link href="/" className="text-accent text-sm hover:underline">
+              Go to onboarding →
             </Link>
           </div>
         </main>
@@ -28,19 +28,22 @@ export default async function ContentPage() {
   }
 
   const strategy: StrategyData = {
-    hookPattern: latest.hook,
-    slideStructure: `${latest.slides.length}-slide ${latest.archetype}`,
+    hookPattern: state.niches[0],
+    slideStructure: "5-slide carousel",
     ctaStyle: "Save + share",
     nicheScore: 8.4,
+  };
+
+  const persona = {
+    icp: state.icp,
+    niches: state.niches,
   };
 
   return (
     <div className="min-h-screen flex flex-col">
       <NavHeader />
       <main className="flex-1 relative z-10">
-        <div className="max-w-4xl mx-auto px-6 py-12">
-          <ContentStudio strategy={strategy} />
-        </div>
+        <ContentStudio strategy={strategy} persona={persona} />
       </main>
     </div>
   );

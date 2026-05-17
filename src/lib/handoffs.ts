@@ -25,7 +25,7 @@ export type DesignBrief = {
   personaPath: string;
   topics: string[];
   referenceTiktok?: string;
-  contextLog: string[]; // reasoning lines for the UI
+  contextLog: string[];
 };
 
 // ---------------------------------------------------------------------------
@@ -36,7 +36,6 @@ async function readReferenceAccount(): Promise<string | undefined> {
   const page = await getPage("reference-tiktok-account");
   if (!page) return undefined;
   const { body } = parseFrontmatter(page);
-  // Body is "# Reference TikTok Account\n\n<url>\n" — grab the URL line
   const match = body.match(/https?:\/\/[^\s]+/);
   return match?.[0];
 }
@@ -65,20 +64,16 @@ function extractAntiPatterns(page: string): string[] {
 }
 
 // ---------------------------------------------------------------------------
-// Persona builder — reads product + niche context entirely from GBrain
+// Persona builder — reads product + niche context from GBrain
 // ---------------------------------------------------------------------------
 
 export async function buildPersonaForNiche(niche: string): Promise<PersonaYaml> {
   const slug = nicheSlugFromName(niche);
-
-  // Niche-specific context from GBrain
   const nichePage = (await getPage(`niches/${slug}`)) ?? "";
-  const hooks = extractHooks(nichePage).slice(0, 6);
-  const voice = extractVoice(nichePage);
-
-  // Product context from user state (seeded during onboarding)
   const user = await readUserState();
 
+  const hooks = extractHooks(nichePage).slice(0, 6);
+  const voice = extractVoice(nichePage);
   const accountHandle = `@${slug.replace(/-/g, "")}`;
 
   return {
