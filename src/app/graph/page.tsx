@@ -70,7 +70,7 @@ function GraphPageInner() {
 
       <div className="fixed top-5 left-4 sm:left-[476px] lg:left-[536px] z-20 pointer-events-none font-mono">
         <p className="text-[22px] font-bold tracking-tight leading-none text-foreground/90">
-          BrainPost
+          GPost
         </p>
         <p className="text-[9px] uppercase tracking-widest text-muted/60 mt-1.5">
           live ingestion · niche graph

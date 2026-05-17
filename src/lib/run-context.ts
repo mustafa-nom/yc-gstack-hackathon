@@ -1,4 +1,4 @@
-const KEY = "brainpost.runId";
+const KEY = "gpost.runId";
 const listeners = new Set<() => void>();
 
 export function getStoredRunId(): string | null {

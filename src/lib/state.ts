@@ -1,7 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
-const BASE = path.resolve(process.cwd(), ".brainpost");
+const BASE = path.resolve(process.cwd(), ".gpost");
 
 async function ensure(dir: string): Promise<void> {
   await fs.mkdir(dir, { recursive: true });
@@ -73,6 +73,6 @@ export async function listJson(relDir: string): Promise<string[]> {
   }
 }
 
-export function brainpostPath(rel: string): string {
+export function gpostPath(rel: string): string {
   return resolveSafe(rel);
 }

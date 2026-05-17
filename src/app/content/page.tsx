@@ -37,6 +37,7 @@ export default async function ContentPage() {
   const persona = {
     icp: state.icp,
     niches: state.niches,
+    referenceTiktok: state.referenceTiktok,
   };
 
   return (

@@ -74,7 +74,7 @@ export async function startOnboarding(input: OnboardInput): Promise<OnboardOutpu
         personalMd,
       };
       await writeUserState(state);
-      log(runId, "personal.md written to .brainpost/", "info", "state");
+      log(runId, "personal.md written to .gpost/", "info", "state");
 
       if (input.referenceTiktok) {
         putPageDetached("reference-tiktok-account", {

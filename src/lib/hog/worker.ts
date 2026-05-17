@@ -67,9 +67,12 @@ export async function runNicheIngestion(
           patch: { data: { niche, slug: nicheSlug, phase: "search", status } },
         }),
     });
-    captions = searchResult.items;
+    captions = searchResult.items.filter((it) => {
+      const c = (it.content ?? "").trim();
+      return c.length > 20 && !/^\[.*\]$/.test(c);
+    });
     publish({ kind: "phaseDone", niche, phase: "search" });
-    log(`Got ${captions.length} TikTok captions from Hog`, "success");
+    log(`Got ${captions.length} usable TikTok captions from Hog`, "success");
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     publish({ kind: "error", niche, message: `search failed: ${msg}` });

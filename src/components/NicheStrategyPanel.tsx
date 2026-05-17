@@ -63,7 +63,7 @@ export function NicheStrategyPanel({
         contextLog: result.contextLog,
       });
       sessionStorage.setItem(
-        "brainpost.lastGeneration",
+        "gpost.lastGeneration",
         JSON.stringify({ niche, contextLog: result.contextLog ?? [], mocked: result.mocked }),
       );
       router.push("/content");

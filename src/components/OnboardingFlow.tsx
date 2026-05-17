@@ -232,7 +232,7 @@ export default function OnboardingFlow() {
             <motion.div key="welcome" {...motionProps} className="text-center max-w-md">
               <div className="inline-flex items-center gap-2.5 mb-8">
                 <Zap className="w-6 h-6 text-accent" />
-                <span className="text-xl font-semibold tracking-tight">BrainPost</span>
+                <span className="text-xl font-semibold tracking-tight">GPost</span>
               </div>
               <h1 className="text-3xl font-semibold tracking-tight mb-3">
                 Build your content strategy

@@ -1,86 +1,26 @@
 "use client";
 
-import { useState, useEffect, startTransition } from "react";
+import { useState, useEffect, startTransition, useTransition } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { ChevronLeft, ChevronRight, X, Eye, Heart, MessageCircle, Share2 } from "lucide-react";
-
-type Status = "done" | "scheduled";
-
-interface Stats { views: number; likes: number; comments: number; shares: number }
-
-interface Post {
-  id: string;
-  title: string;
-  status: Status;
-  thumbnail?: string;
-  caption?: string;
-  stats?: Stats;
-  scheduledTime?: string;
-}
-
-// Real posts from @tylerbrooks.lifts
-const REAL: Post[] = [
-  { id: "7640388791521299726", status: "done", title: "if you are over 6 feet and you have been lifting for a while you have probably been told you are built for endurance not strength", thumbnail: "/thumbs/7640388791521299726.jpeg", caption: "#lifting #fitness #strengthtraining #talllifters #gymadvice", stats: { views: 878, likes: 26, comments: 2, shares: 1 } },
-  { id: "7639791124252544286", status: "done", title: "most lifters treat deload weeks like a sign of weakness like if you take a lighter week you are going soft", thumbnail: "/thumbs/7639791124252544286.jpeg", caption: "#deload #recovery #gymlife #liftingadvice #strengthtraining", stats: { views: 903, likes: 22, comments: 2, shares: 3 } },
-  { id: "7639655291029622029", status: "done", title: "becoming a dad does not mean your physique has to disappear but pretty much every piece of advice out there assumes you still have the same schedule you did at 24", thumbnail: "/thumbs/7639655291029622029.jpeg", caption: "#dadfitness #fitdad #gymlife #busydad #physique", stats: { views: 12500, likes: 102, comments: 2, shares: 0 } },
-  { id: "7639253997185961247", status: "done", title: "the transition from college athlete to regular adult is where most guys lose the gym for good", thumbnail: "/thumbs/7639253997185961247.jpeg", caption: "#collegeathlete #adultfitness #gymlife #fitness #transition", stats: { views: 942, likes: 22, comments: 0, shares: 0 } },
-  { id: "7638927125596097823", status: "done", title: "the guys who look like they live in the gym a lot of them are there four days a week", thumbnail: "/thumbs/7638927125596097823.jpeg", caption: "#gymefficiency #workoutsplit #fitnesstips #gymlife #4dayworkout", stats: { views: 816, likes: 25, comments: 0, shares: 0 } },
-  { id: "7638506969095081247", status: "done", title: "most lifters treat cardio like it is the enemy of gains and if you are running 5 miles a day on top of heavy lifting that might be true", thumbnail: "/thumbs/7638506969095081247.jpeg", caption: "#cardio #gains #lifting #fitnesstips #musclebuilding", stats: { views: 430, likes: 10, comments: 0, shares: 0 } },
-  { id: "7636527260677311758", status: "done", title: "the gym in college feels like the one thing you can control classes stress social stuff the gym is yours", thumbnail: "/thumbs/7636527260677311758.jpeg", caption: "#collegefitness #gymlife #studentathlete #mentalhealth #lifting", stats: { views: 1160, likes: 40, comments: 0, shares: 1 } },
-  { id: "7636240073238859038", status: "done", title: "the fitness internet will have you believe that anything less than a perfect program perfectly executed is a waste of time", thumbnail: "/thumbs/7636240073238859038.jpeg", caption: "#fitnessmyths #gym #liftingadvice #fitness #programdesign", stats: { views: 46, likes: 0, comments: 0, shares: 0 } },
-  { id: "7635855429465017631", status: "done", title: "most guys hit a wall and their first instinct is to add more volume more sets more days more exercises", thumbnail: "/thumbs/7635855429465017631.jpeg", caption: "#plateau #training #overtraining #gymadvice #volume", stats: { views: 513, likes: 23, comments: 0, shares: 0 } },
-  { id: "7635505161065991455", status: "done", title: "Most guys with day jobs and partners and obligations think they need to overhaul their entire life to get back in shape", thumbnail: "/thumbs/7635505161065991455.jpeg", caption: "#busylifestyle #gymlife #fitness #worklifebalance #dadlife", stats: { views: 435, likes: 15, comments: 0, shares: 0 } },
-  { id: "7635138094315932958", status: "done", title: "Some weeks the program holds. Some weeks Tuesday eats your squat session alive", thumbnail: "/thumbs/7635138094315932958.jpeg", caption: "#gymlife #consistency #liftinglife #squats #training", stats: { views: 355, likes: 7, comments: 0, shares: 0 } },
-  { id: "7634628799740644622", status: "done", title: "Cutting is where most lifters watch a year of gains slip in eight weeks", thumbnail: "/thumbs/7634628799740644622.jpeg", caption: "#cutting #fatloss #musclemass #diet #bodyrecomp", stats: { views: 446, likes: 9, comments: 1, shares: 0 } },
-  { id: "7634264872578059551", status: "done", title: "Ten years in the gym and the things I wish I had known on day one are not what you would expect", thumbnail: "/thumbs/7634264872578059551.jpeg", caption: "#gymwisdom #liftingadvice #10years #fitness #gymlife", stats: { views: 317, likes: 5, comments: 0, shares: 0 } },
-  { id: "7633826380903370015", status: "done", title: "Shift work breaks the textbook training advice. You cannot eat at the same time every day sleep at the same time every night or train on a fixed schedule", thumbnail: "/thumbs/7633826380903370015.jpeg", caption: "#shiftwork #gymlife #fitness #nightshift #workerlife", stats: { views: 351, likes: 15, comments: 0, shares: 0 } },
-];
-
-// Map video ID → date (UTC)
-const ID_TO_DATE: Record<string, string> = {
-  "7640388791521299726": "2026-05-16",
-  "7639791124252544286": "2026-05-14",
-  "7639655291029622029": "2026-05-14",
-  "7639253997185961247": "2026-05-13",
-  "7638927125596097823": "2026-05-12",
-  "7638506969095081247": "2026-05-11",
-  "7636527260677311758": "2026-05-05",
-  "7636240073238859038": "2026-05-05",
-  "7635855429465017631": "2026-05-04",
-  "7635505161065991455": "2026-05-03",
-  "7635138094315932958": "2026-05-02",
-  "7634628799740644622": "2026-04-30",
-  "7634264872578059551": "2026-04-29",
-  "7633826380903370015": "2026-04-28",
-};
-
-// Future scheduled posts (dummy)
-const SCHEDULED: Record<string, Post[]> = {
-  "2026-05-17": [
-    { id: "s1", status: "scheduled", title: "The protein myth most lifters still believe in 2026", scheduledTime: "12:00 PM" },
-    { id: "s2", status: "scheduled", title: "How to stay consistent when life gets completely in the way", scheduledTime: "7:00 PM" },
-  ],
-  "2026-05-19": [
-    { id: "s3", status: "scheduled", title: "3 compound lifts you should never skip no matter how busy you are", scheduledTime: "12:00 PM" },
-  ],
-  "2026-05-20": [
-    { id: "s4", status: "scheduled", title: "What I wish I knew before my first cut", scheduledTime: "6:30 PM" },
-  ],
-  "2026-05-21": [
-    { id: "s5", status: "scheduled", title: "The mindset shift that actually changed how I train", scheduledTime: "5:00 PM" },
-  ],
-};
+import { BookOpenText, ChevronLeft, ChevronRight, Eye, Heart, Loader2, MessageCircle, Share2, Sparkles, X } from "lucide-react";
+import { generatePerformanceLearningsForGStack, type GStackLearningWrite } from "@/app/actions/insights";
+import {
+  POST_DATE_BY_ID,
+  PREVIOUS_POSTS,
+  SCHEDULED_POSTS_BY_DATE,
+  type PerformancePost,
+} from "@/lib/performance-posts";
 
 // Build DUMMY from real posts + scheduled
-function buildDummy(): Record<string, Post[]> {
-  const map: Record<string, Post[]> = {};
-  for (const post of REAL) {
-    const date = ID_TO_DATE[post.id];
+function buildDummy(): Record<string, PerformancePost[]> {
+  const map: Record<string, PerformancePost[]> = {};
+  for (const post of PREVIOUS_POSTS) {
+    const date = POST_DATE_BY_ID[post.id];
     if (!date) continue;
     if (!map[date]) map[date] = [];
     map[date].push(post);
   }
-  for (const [date, posts] of Object.entries(SCHEDULED)) {
+  for (const [date, posts] of Object.entries(SCHEDULED_POSTS_BY_DATE)) {
     map[date] = posts;
   }
   return map;
@@ -125,7 +65,10 @@ export default function ContentCalendar() {
   // SSR returns null; client populates on mount via startTransition so the
   // hydration sync doesn't trigger a cascading render (react-hooks/set-state-in-effect).
   const [weekStart, setWeekStart] = useState<Date | null>(null);
-  const [selected, setSelected] = useState<Post | null>(null);
+  const [selected, setSelected] = useState<PerformancePost | null>(null);
+  const [gstackWrite, setGstackWrite] = useState<GStackLearningWrite | null>(null);
+  const [gstackStatus, setGstackStatus] = useState("");
+  const [isGenerating, startGenerating] = useTransition();
 
   useEffect(() => {
     startTransition(() => setWeekStart(getMonday(new Date())));
@@ -151,26 +94,97 @@ export default function ContentCalendar() {
   const startLabel = weekStart.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   const endLabel = weekEnd.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
+  function onGenerateLearnings() {
+    setGstackStatus("Generating learnings from previous posts...");
+    startGenerating(async () => {
+      try {
+        const result = await generatePerformanceLearningsForGStack();
+        setGstackWrite(result);
+        setGstackStatus(`Written to GStack: ${result.slug}`);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        setGstackStatus(`error: ${msg}`);
+      }
+    });
+  }
+
   return (
     <div className="relative">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-start justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Schedule</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Performance</h1>
           <p className="text-sm text-muted mt-1">Content from @tylerbrooks.lifts</p>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-muted tabular-nums">{startLabel} — {endLabel}</span>
-          <div className="flex items-center gap-0.5">
-            <button onClick={prevWeek} className="p-1.5 rounded-md text-muted hover:text-foreground hover:bg-subtle transition-colors cursor-pointer">
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <button onClick={nextWeek} className="p-1.5 rounded-md text-muted hover:text-foreground hover:bg-subtle transition-colors cursor-pointer">
-              <ChevronRight className="w-4 h-4" />
-            </button>
+        <div className="flex flex-col items-end gap-3">
+          <button
+            onClick={onGenerateLearnings}
+            disabled={isGenerating}
+            className="inline-flex items-center gap-1.5 bg-accent hover:bg-accent-hover text-white text-xs px-3 py-1.5 rounded-md font-medium transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-wait"
+          >
+            {isGenerating ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              <Sparkles className="w-3 h-3" />
+            )}
+            Generate learnings
+          </button>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-muted tabular-nums">{startLabel} — {endLabel}</span>
+            <div className="flex items-center gap-0.5">
+              <button onClick={prevWeek} className="p-1.5 rounded-md text-muted hover:text-foreground hover:bg-subtle transition-colors cursor-pointer">
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button onClick={nextWeek} className="p-1.5 rounded-md text-muted hover:text-foreground hover:bg-subtle transition-colors cursor-pointer">
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
+          {gstackStatus && (
+            <p className="text-[10px] text-muted/60 font-mono">{gstackStatus}</p>
+          )}
         </div>
       </div>
+
+      {gstackWrite && (
+        <motion.section
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+          className="mb-8 bg-card-bg border border-card-border rounded-lg overflow-hidden"
+        >
+          <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-card-border">
+            <div className="flex items-center gap-2 min-w-0">
+              <BookOpenText className="w-4 h-4 text-accent shrink-0" />
+              <div className="min-w-0">
+                <p className="text-xs font-medium">GStack write</p>
+                <p className="text-[10px] text-muted font-mono truncate">{gstackWrite.slug}</p>
+              </div>
+            </div>
+            <span className="text-[10px] text-muted/60 font-mono shrink-0">
+              {gstackWrite.learning.patterns.length} learnings
+            </span>
+          </div>
+          <div className="space-y-4 p-4">
+            {gstackWrite.learning.patterns.map((pattern, index) => (
+              <div key={`${pattern.pattern}-${index}`} className="rounded-md border border-card-border bg-background/40 p-3">
+                <p className="text-sm font-medium text-foreground">
+                  {index + 1}. {pattern.pattern}
+                </p>
+                <p className="mt-2 text-xs leading-relaxed text-muted">
+                  {pattern.evidence}
+                </p>
+                <p className="mt-2 text-xs leading-relaxed text-foreground/70">
+                  {pattern.recommendation}
+                </p>
+              </div>
+            ))}
+          </div>
+          <pre className="max-h-56 overflow-auto whitespace-pre-wrap break-words border-t border-card-border p-4 text-[11px] leading-relaxed text-foreground/60 font-mono">
+            {gstackWrite.content}
+          </pre>
+        </motion.section>
+      )}
 
       {/* Calendar grid */}
       <div className="overflow-x-auto -mx-6 px-6">

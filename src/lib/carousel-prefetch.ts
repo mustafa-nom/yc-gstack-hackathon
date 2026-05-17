@@ -1,6 +1,6 @@
 const BACKEND =
   process.env.NEXT_PUBLIC_CAROUSEL_API_BASE ?? "http://localhost:8000";
-const CACHE_PREFIX = "brainpost.carousel";
+const CACHE_PREFIX = "gpost.carousel";
 
 export type CarouselResult = {
   imageUrls: string[];

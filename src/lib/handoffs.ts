@@ -1,7 +1,7 @@
 import { dump as yamlDump } from "js-yaml";
 import { getPage, parseFrontmatter } from "./gbrain";
 import { nicheSlugFromName } from "./hog/transformer";
-import { readUserState, brainpostPath } from "./state";
+import { readUserState, gpostPath } from "./state";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
@@ -101,7 +101,7 @@ export async function buildPersonaForNiche(niche: string): Promise<PersonaYaml> 
 export async function writePersonaForNiche(niche: string): Promise<string> {
   const persona = await buildPersonaForNiche(niche);
   const slug = nicheSlugFromName(niche);
-  const dir = brainpostPath("personas");
+  const dir = gpostPath("personas");
   await fs.mkdir(dir, { recursive: true });
   const filePath = path.join(dir, `persona-${slug}.yaml`);
   await fs.writeFile(filePath, yamlDump(persona, { lineWidth: 120 }), "utf-8");

@@ -32,11 +32,12 @@ function authHeaders(): Record<string, string> {
   const access = getAccessKey();
   const secret = getSecretKey();
   if (!access) throw new Error("HOG_API_KEY (or HOG_ACCESS_KEY) missing in env");
-  // If key starts with ak_ and secret is present, use access/secret pair.
-  if (access.startsWith("ak_") && secret) {
-    return { "X-Access-Key": access, "X-Secret-Key": secret };
+  // ak_ keys always use X-Access-Key header (with optional secret).
+  if (access.startsWith("ak_")) {
+    const headers: Record<string, string> = { "X-Access-Key": access };
+    if (secret) headers["X-Secret-Key"] = secret;
+    return headers;
   }
-  // Otherwise assume Bearer-token style (hog_live_...).
   return { Authorization: `Bearer ${access}` };
 }
 

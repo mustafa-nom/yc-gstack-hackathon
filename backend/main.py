@@ -68,6 +68,7 @@ class GenerateRequest(BaseModel):
     count: int = 1
     topics: list = []
     skip_images: bool = False
+    reference_tiktok: str = ""
 
 
 @app.post("/generate")
@@ -79,12 +80,15 @@ async def generate_carousel(data: GenerateRequest):
         if SLIDES_OUTPUT.exists():
             shutil.rmtree(SLIDES_OUTPUT)
         SLIDES_OUTPUT.mkdir(parents=True, exist_ok=True)
+        reference_tiktok = data.reference_tiktok or data.persona.get("referenceTiktok", "")
         cmd = [
             "python", "generate_carousel.py",
             "--persona-json", json.dumps(data.persona),
             "--count", str(data.count),
             "--output-dir", str(CAROUSEL_DIR / "output"),
         ]
+        if reference_tiktok:
+            cmd += ["--account", reference_tiktok]
         if data.skip_images:
             cmd.append("--skip-images")
         cmd += data.topics

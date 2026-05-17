@@ -39,7 +39,7 @@ function NavHeaderInner() {
           href="/"
           className="text-sm font-semibold tracking-tight text-foreground/80 hover:text-foreground transition-colors"
         >
-          BrainPost
+          GPost
         </Link>
         <nav className="flex gap-1">
           {TABS.map(({ href, label }) => (

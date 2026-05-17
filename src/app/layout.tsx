@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "BrainPost — AI Content Agent",
+  title: "GPost — AI Content Agent",
   description: "AI-powered TikTok content agent",
 };
 

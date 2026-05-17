@@ -127,7 +127,7 @@ export function AgentLogPanel({
           : `Designs ready (exit ${result.exitCode})`,
       });
       sessionStorage.setItem(
-        "brainpost.lastGeneration",
+        "gpost.lastGeneration",
         JSON.stringify({ niche, contextLog: result.contextLog ?? [], mocked: result.mocked }),
       );
       router.push("/content");
@@ -166,7 +166,7 @@ export function AgentLogPanel({
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[11px] font-medium text-foreground/90 leading-tight">
-              BrainPost Agent
+              GPost Agent
             </p>
             <p className="text-[9px] font-mono uppercase tracking-widest text-muted/70 mt-0.5">
               {allReady ? "ready" : "thinking…"} · run · {runId.slice(-8)}

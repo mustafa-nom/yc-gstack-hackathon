@@ -14,7 +14,7 @@ export type StepLogEntry = {
   source: "ui" | "server";
 };
 
-const LOG_ROOT = path.join(process.cwd(), ".brainpost", "logs");
+const LOG_ROOT = path.join(process.cwd(), ".gpost", "logs");
 
 function safeSlug(s: string): string {
   return s.replace(/[^a-z0-9._-]+/gi, "-").toLowerCase().slice(0, 80) || "step";
