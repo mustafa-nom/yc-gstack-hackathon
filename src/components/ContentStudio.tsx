@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Layers, Loader2, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
+import { Layers, Loader2, ChevronLeft, ChevronRight, RefreshCw, Send, Check } from "lucide-react";
 import type { StrategyData } from "@/types";
+import { pushToTiktok } from "@/app/actions/push-to-tiktok";
 import {
   ensureCarousel,
   readCachedCarousel,
@@ -31,6 +32,7 @@ export default function ContentStudio({
   const [count, setCount] = useState(1);
   const [mockNiche, setMockNiche] = useState<string>("");
   const [mockSlides, setMockSlides] = useState<string[]>([]);
+  const [pushState, setPushState] = useState<"idle" | "pushing" | "pushed">("idle");
 
   useEffect(() => {
     const raw = sessionStorage.getItem("brainpost.lastGeneration");
@@ -199,7 +201,7 @@ export default function ContentStudio({
             </motion.div>
           )}
 
-          {/* Done — mock slide carousel + context log */}
+          {/* Done — fallback slide viewer + context log */}
           {genState === "done" && imageUrls.length === 0 && mockSlides.length > 0 && (
             <motion.div
               key="done-mock"
@@ -217,12 +219,16 @@ export default function ContentStudio({
                   <ChevronLeft className="w-5 h-5" />
                 </button>
                 <AnimatePresence mode="wait">
-                  <MockSlide
+                  <motion.img
                     key={activeSlide}
-                    index={activeSlide}
-                    total={mockSlides.length}
-                    text={mockSlides[activeSlide]}
-                    niche={mockNiche}
+                    src={`/mock-slides/slide_${String((activeSlide % FALLBACK_SLIDE_COUNT) + 1).padStart(2, "0")}.jpg`}
+                    alt={`Slide ${activeSlide + 1}`}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{ duration: 0.2 }}
+                    className="w-60 rounded-2xl shadow-2xl flex-shrink-0 object-cover"
+                    style={{ aspectRatio: "9/16" }}
                   />
                 </AnimatePresence>
                 <button
@@ -237,14 +243,15 @@ export default function ContentStudio({
               {/* Thumbnail strip */}
               <div className="flex gap-2 justify-center overflow-x-auto pb-2 mb-6">
                 {mockSlides.map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setActiveSlide(i)}
-                    className={`w-10 h-16 rounded-md transition-all cursor-pointer flex-shrink-0 ${
-                      i === activeSlide ? "ring-2 ring-accent opacity-100" : "opacity-30 hover:opacity-60"
-                    }`}
-                    style={{ background: `hsl(${(i * 47 + 220) % 360} 25% 12%)` }}
-                  />
+                  <button key={i} onClick={() => setActiveSlide(i)} className="cursor-pointer flex-shrink-0">
+                    <img
+                      src={`/mock-slides/slide_${String((i % FALLBACK_SLIDE_COUNT) + 1).padStart(2, "0")}.jpg`}
+                      alt={`Slide ${i + 1}`}
+                      className={`w-10 h-16 rounded-md object-cover transition-all ${
+                        i === activeSlide ? "ring-2 ring-accent scale-105 shadow-lg" : "opacity-50 hover:opacity-80"
+                      }`}
+                    />
+                  </button>
                 ))}
               </div>
               <p className="text-center text-xs text-muted mb-8">
@@ -270,6 +277,35 @@ export default function ContentStudio({
                     );
                   })}
                 </div>
+              </div>
+
+              {/* Post to TikTok */}
+              <div className="mt-6 flex justify-center">
+                <button
+                  onClick={async () => {
+                    setPushState("pushing");
+                    try {
+                      await pushToTiktok({
+                        nicheSlug: mockNiche || "brainpost",
+                        integrationId: "cmp91zvg701rfoh0ymuqq4tpg",
+                      });
+                      setPushState("pushed");
+                    } catch {
+                      setPushState("idle");
+                    }
+                  }}
+                  disabled={pushState === "pushing" || pushState === "pushed"}
+                  className="inline-flex items-center gap-2 bg-accent hover:bg-accent-hover text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {pushState === "pushing" ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : pushState === "pushed" ? (
+                    <Check className="w-4 h-4" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
+                  {pushState === "pushed" ? "Scheduled!" : pushState === "pushing" ? "Scheduling…" : "Post to TikTok"}
+                </button>
               </div>
             </motion.div>
           )}
@@ -361,71 +397,4 @@ function StrategyCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-const SLIDE_GRADIENTS = [
-  "linear-gradient(160deg, #0f0f14 0%, #1a1025 100%)",
-  "linear-gradient(160deg, #0d1117 0%, #0f1a2e 100%)",
-  "linear-gradient(160deg, #0f1408 0%, #182312 100%)",
-  "linear-gradient(160deg, #180f0f 0%, #2a1410 100%)",
-  "linear-gradient(160deg, #110e1a 0%, #1c1030 100%)",
-  "linear-gradient(160deg, #0d1318 0%, #0f2028 100%)",
-];
-
-function MockSlide({
-  index,
-  total,
-  text,
-  niche,
-}: {
-  index: number;
-  total: number;
-  text: string;
-  niche: string;
-}) {
-  const isFirst = index === 0;
-  const isLast = index === total - 1;
-  const gradient = SLIDE_GRADIENTS[index % SLIDE_GRADIENTS.length];
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -20 }}
-      transition={{ duration: 0.2 }}
-      className="relative w-56 rounded-2xl overflow-hidden shadow-2xl flex-shrink-0"
-      style={{ aspectRatio: "9/16", background: gradient }}
-    >
-      {/* Noise texture overlay */}
-      <div className="absolute inset-0 opacity-[0.03]"
-        style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E\")" }}
-      />
-
-      {/* Slide counter */}
-      <div className="absolute top-4 right-4 text-[10px] font-mono text-white/40">
-        {index + 1}/{total}
-      </div>
-
-      {/* Content */}
-      <div className="absolute inset-0 flex flex-col justify-center px-5">
-        {isFirst && (
-          <p className="text-[9px] font-mono uppercase tracking-widest text-white/40 mb-3">
-            {niche}
-          </p>
-        )}
-        <p className={`font-semibold text-white leading-snug ${isFirst ? "text-lg" : isLast ? "text-base" : "text-sm"}`}>
-          {text}
-        </p>
-        {!isFirst && !isLast && (
-          <div className="mt-3 h-px w-8 bg-white/20" />
-        )}
-      </div>
-
-      {/* Bottom bar */}
-      <div className="absolute bottom-0 left-0 right-0 px-4 py-3 flex items-center gap-2"
-        style={{ background: "linear-gradient(to top, rgba(0,0,0,0.6), transparent)" }}
-      >
-        <div className="w-5 h-5 rounded-full bg-accent/80" />
-        <span className="text-[9px] text-white/50 font-mono">@brainpost</span>
-      </div>
-    </motion.div>
-  );
-}
+const FALLBACK_SLIDE_COUNT = 6;
