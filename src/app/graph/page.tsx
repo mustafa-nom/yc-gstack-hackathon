@@ -36,14 +36,19 @@ function GraphPageInner() {
 
   return (
     <div className="min-h-screen relative bg-background overflow-hidden">
-      <LiveGraph
-        runId={runId}
-        onNodeSelect={setSelected}
-        onNicheReady={(n) =>
-          setReadyNiches((prev) => (prev.includes(n) ? prev : [...prev, n]))
-        }
-        onAllReady={() => setAllReady(true)}
-      />
+      {/* Position the graph to the right of AgentLogPanel so it centers in the
+          actual visible area, not behind the panel. Widths must match the
+          panel's responsive breakpoints in AgentLogPanel.tsx. */}
+      <div className="fixed inset-y-0 right-0 left-0 sm:left-[460px] lg:left-[520px] z-0">
+        <LiveGraph
+          runId={runId}
+          onNodeSelect={setSelected}
+          onNicheReady={(n) =>
+            setReadyNiches((prev) => (prev.includes(n) ? prev : [...prev, n]))
+          }
+          onAllReady={() => setAllReady(true)}
+        />
+      </div>
 
       <AgentLogPanel runId={runId} allReady={allReady} niches={readyNiches} />
 

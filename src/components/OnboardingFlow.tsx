@@ -3,16 +3,10 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useRouter } from "next/navigation";
-import dynamic from "next/dynamic";
 import { ArrowRight, Zap, Loader2 } from "lucide-react";
 import { startOnboarding } from "@/app/actions/onboard";
 import type { GraphEvent } from "@/lib/graph-bus";
 import { setStoredRunId } from "@/lib/run-context";
-
-const LiveGraph = dynamic(
-  () => import("@/components/LiveGraph").then((m) => m.LiveGraph),
-  { ssr: false },
-);
 
 const STEP_ORDER = [
   "welcome",
@@ -41,6 +35,41 @@ export default function OnboardingFlow() {
   const typeQueueRef = useRef<{ text: string; level: "info" | "success" | "warn" | "error" }[]>([]);
   const typingRef = useRef(false);
   const router = useRouter();
+  // useState lazy initializer runs exactly once at mount — keeps the impure
+  // Date.now / Math.random out of render and satisfies react-hooks/purity.
+  const [uiSessionId] = useState(
+    () => `ui-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+  );
+
+  useEffect(() => {
+    const logId = runId ?? uiSessionId;
+    void fetch("/api/log", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      keepalive: true,
+      body: JSON.stringify({
+        runId: logId,
+        step: `ui:${step}`,
+        level: "info",
+        message: `entered step "${step}"`,
+      }),
+    }).catch(() => {});
+  }, [step, runId]);
+
+  useEffect(() => {
+    if (!runId) return;
+    void fetch("/api/log", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      keepalive: true,
+      body: JSON.stringify({
+        runId,
+        step: "ui:linked",
+        level: "info",
+        message: `ui session ${uiSessionId} linked to run ${runId}`,
+      }),
+    }).catch(() => {});
+  }, [runId]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -167,7 +196,6 @@ export default function OnboardingFlow() {
 
   return (
     <div className="min-h-screen flex flex-col relative">
-      {step === "scanning" && runId && <LiveGraph runId={runId} />}
       {showProgress && (
         <div className="fixed top-0 left-0 right-0 h-[2px] bg-subtle z-50">
           <motion.div

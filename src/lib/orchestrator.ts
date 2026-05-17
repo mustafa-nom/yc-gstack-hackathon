@@ -1,6 +1,7 @@
 import { runNicheIngestion, type NicheRunResult } from "./hog/worker";
 import { graphBus } from "./graph-bus";
 import { clearWrittenSlugs } from "./hog/transformer";
+import { attachStepLogger } from "./step-logger";
 
 // How long to keep per-run state alive after allReady so late SSE
 // reconnects can still replay the full event log.
@@ -45,10 +46,12 @@ export function kickoffOrchestrator(
 ): Promise<OrchestrationResult> {
   const existing = inflight.get(input.runId);
   if (existing) return existing;
+  const detachLogger = attachStepLogger(input.runId);
   const p = runOrchestrator(input);
   inflight.set(input.runId, p);
   p.finally(() => {
     setTimeout(() => {
+      detachLogger();
       inflight.delete(input.runId);
       graphBus.clear(input.runId);
       clearWrittenSlugs(input.runId);
