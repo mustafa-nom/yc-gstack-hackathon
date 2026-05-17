@@ -1,11 +1,18 @@
 "use server";
 
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+
 const POSTIZ_BASE = "https://api.postiz.com";
 
-function postizHeaders(contentType?: string): Record<string, string> {
+function postizApiKey(): string {
   const key = process.env.POSTIZ_API_KEY;
   if (!key) throw new Error("POSTIZ_API_KEY is not set");
-  const h: Record<string, string> = { Authorization: key };
+  return key;
+}
+
+function postizHeaders(contentType?: string): Record<string, string> {
+  const h: Record<string, string> = { Authorization: postizApiKey() };
   if (contentType) h["Content-Type"] = contentType;
   return h;
 }
@@ -32,9 +39,39 @@ async function integrationIdForTiktok(handle: string): Promise<string | null> {
       return i.id;
     }
   }
-  // Fall back to first TikTok integration if handle not matched
   const fallback = integrations.find((i) => i.identifier === "tiktok");
   return fallback?.id ?? null;
+}
+
+// Upload a single image to Postiz. `src` is either:
+//   - a public-relative path like /mock-slides/slide_01.jpg (reads from ./public/)
+//   - a full http(s) URL (fetched remotely)
+async function uploadMedia(src: string): Promise<{ id: string; path: string }> {
+  let buffer: Buffer;
+  let filename: string;
+
+  if (src.startsWith("http://") || src.startsWith("https://")) {
+    const res = await fetch(src);
+    if (!res.ok) throw new Error(`Failed to fetch image ${src}: ${res.status}`);
+    buffer = Buffer.from(await res.arrayBuffer());
+    filename = src.split("/").pop()?.split("?")[0] ?? "slide.jpg";
+  } else {
+    const abs = path.join(process.cwd(), "public", src.replace(/^\//, ""));
+    buffer = await readFile(abs);
+    filename = path.basename(abs);
+  }
+
+  const formData = new FormData();
+  const arrayBuf = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer;
+  formData.append("file", new Blob([arrayBuf], { type: "image/jpeg" }), filename);
+
+  const res = await fetch(`${POSTIZ_BASE}/public/v1/media`, {
+    method: "POST",
+    headers: { Authorization: postizApiKey() },
+    body: formData,
+  });
+  if (!res.ok) throw new Error(`Postiz media upload ${res.status}: ${await res.text()}`);
+  return res.json();
 }
 
 async function schedulePost(
@@ -60,7 +97,7 @@ async function schedulePost(
           autoAddMusic: "no",
           brand_content_toggle: false,
           brand_organic_toggle: false,
-          content_posting_method: "UPLOAD",
+          content_posting_method: "DIRECT_POST",
         },
       },
     ],
@@ -80,11 +117,12 @@ export async function pushToTiktok(input: {
   tiktokHandle?: string;
   integrationId?: string;
   scheduledFor?: string; // ISO string; defaults to 10 minutes from now
+  imageSrcs?: string[]; // public-relative paths or full URLs
 }): Promise<PushResult> {
   if (process.env.RUN_REAL_TIKTOK_PUSH !== "1") {
     return {
       posted: true,
-      postUrl: `https://tiktok.com/@brainpost/preview/${input.nicheSlug}`,
+      postUrl: `https://tiktok.com/@gpost/preview/${input.nicheSlug}`,
       message: `[mock] Posted ${input.nicheSlug} carousel to TikTok. Set RUN_REAL_TIKTOK_PUSH=1 to actually post.`,
       mocked: true,
     };
@@ -92,7 +130,7 @@ export async function pushToTiktok(input: {
 
   let integrationId = input.integrationId;
   if (!integrationId) {
-    const handle = input.tiktokHandle ?? "brainpost";
+    const handle = input.tiktokHandle ?? "gpost";
     integrationId = (await integrationIdForTiktok(handle)) ?? undefined;
   }
   if (!integrationId) {
@@ -103,14 +141,21 @@ export async function pushToTiktok(input: {
     ? new Date(input.scheduledFor)
     : new Date(Date.now() + 10 * 60 * 1000);
 
-  const caption = input.caption ?? `${input.nicheSlug.replace(/-/g, " ")} #brainpost #tiktok`;
+  const caption = input.caption ?? `${input.nicheSlug.replace(/-/g, " ")} #gpost #tiktok`;
 
-  const result = await schedulePost(integrationId, caption, publishAt, []);
+  // Upload images in parallel
+  const media: { id: string; path: string }[] = [];
+  if (input.imageSrcs && input.imageSrcs.length > 0) {
+    const uploaded = await Promise.all(input.imageSrcs.map(uploadMedia));
+    media.push(...uploaded);
+  }
+
+  const result = await schedulePost(integrationId, caption, publishAt, media);
 
   return {
     posted: true,
     postUrl: `https://postiz.com/posts/${result.id}`,
-    message: `Scheduled to TikTok via Postiz at ${publishAt.toLocaleTimeString()}`,
+    message: `Posted to TikTok via Postiz${media.length ? ` with ${media.length} images` : ""}`,
     mocked: false,
   };
 }

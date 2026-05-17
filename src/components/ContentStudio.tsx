@@ -35,7 +35,7 @@ export default function ContentStudio({
   const [pushState, setPushState] = useState<"idle" | "pushing" | "pushed">("idle");
 
   useEffect(() => {
-    const raw = sessionStorage.getItem("brainpost.lastGeneration");
+    const raw = sessionStorage.getItem("gpost.lastGeneration");
     if (raw) {
       try {
         const parsed = JSON.parse(raw) as { niche: string; contextLog: string[]; mocked: boolean };
@@ -54,7 +54,7 @@ export default function ContentStudio({
         ].filter(Boolean).slice(0, 6);
         setMockSlides(slides);
         setGenState("done");
-        sessionStorage.removeItem("brainpost.lastGeneration");
+        sessionStorage.removeItem("gpost.lastGeneration");
       } catch {
         // ignore malformed
       }
@@ -284,10 +284,14 @@ export default function ContentStudio({
                 <button
                   onClick={async () => {
                     setPushState("pushing");
+                    const imageSrcs = mockSlides.map((_, i) =>
+                      `/mock-slides/slide_${String((i % FALLBACK_SLIDE_COUNT) + 1).padStart(2, "0")}.jpg`
+                    );
                     try {
                       await pushToTiktok({
-                        nicheSlug: mockNiche || "brainpost",
+                        nicheSlug: mockNiche || "gpost",
                         integrationId: "cmp91zvg701rfoh0ymuqq4tpg",
+                        imageSrcs,
                       });
                       setPushState("pushed");
                     } catch {
@@ -363,6 +367,36 @@ export default function ContentStudio({
               <p className="text-center text-xs text-muted mt-3">
                 Slide {activeSlide + 1} of {imageUrls.length}
               </p>
+
+              {/* Post to TikTok */}
+              <div className="mt-6 flex justify-center">
+                <button
+                  onClick={async () => {
+                    setPushState("pushing");
+                    try {
+                      await pushToTiktok({
+                        nicheSlug: mockNiche || "gpost",
+                        integrationId: "cmp91zvg701rfoh0ymuqq4tpg",
+                        imageSrcs: imageUrls.map((u) => `${CAROUSEL_API_BASE}${u}`),
+                      });
+                      setPushState("pushed");
+                    } catch {
+                      setPushState("idle");
+                    }
+                  }}
+                  disabled={pushState === "pushing" || pushState === "pushed"}
+                  className="inline-flex items-center gap-2 bg-accent hover:bg-accent-hover text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {pushState === "pushing" ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : pushState === "pushed" ? (
+                    <Check className="w-4 h-4" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
+                  {pushState === "pushed" ? "Posted!" : pushState === "pushing" ? "Posting…" : "Post to TikTok"}
+                </button>
+              </div>
             </motion.div>
           )}
 
