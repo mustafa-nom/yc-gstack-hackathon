@@ -78,6 +78,7 @@ export async function pushToTiktok(input: {
   nicheSlug: string;
   caption?: string;
   tiktokHandle?: string;
+  integrationId?: string;
   scheduledFor?: string; // ISO string; defaults to 10 minutes from now
 }): Promise<PushResult> {
   if (process.env.RUN_REAL_TIKTOK_PUSH !== "1") {
@@ -89,10 +90,13 @@ export async function pushToTiktok(input: {
     };
   }
 
-  const handle = input.tiktokHandle ?? "brainpost";
-  const integrationId = await integrationIdForTiktok(handle);
+  let integrationId = input.integrationId;
   if (!integrationId) {
-    throw new Error(`No Postiz TikTok integration found for handle "${handle}". Check postiz.com integrations.`);
+    const handle = input.tiktokHandle ?? "brainpost";
+    integrationId = (await integrationIdForTiktok(handle)) ?? undefined;
+  }
+  if (!integrationId) {
+    throw new Error("No Postiz TikTok integration found. Check postiz.com integrations.");
   }
 
   const publishAt = input.scheduledFor
