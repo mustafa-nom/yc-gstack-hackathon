@@ -3,10 +3,20 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { ArrowRight, Zap, Loader2 } from "lucide-react";
 import { startOnboarding } from "@/app/actions/onboard";
 import type { GraphEvent } from "@/lib/graph-bus";
 import { setStoredRunId } from "@/lib/run-context";
+
+// Mount the live graph as a full-viewport background during scanning so it's
+// already populated by the time the user clicks through to /graph. Next route
+// transitions unmount the previous page, so this never coexists with the
+// /graph instance — no duplicate WebGL contexts.
+const LiveGraph = dynamic(
+  () => import("@/components/LiveGraph").then((m) => m.LiveGraph),
+  { ssr: false },
+);
 
 const STEP_ORDER = [
   "welcome",
@@ -196,6 +206,11 @@ export default function OnboardingFlow() {
 
   return (
     <div className="min-h-screen flex flex-col relative">
+      {step === "scanning" && runId && (
+        <div className="fixed inset-0 z-0">
+          <LiveGraph runId={runId} />
+        </div>
+      )}
       {showProgress && (
         <div className="fixed top-0 left-0 right-0 h-[2px] bg-subtle z-50">
           <motion.div
