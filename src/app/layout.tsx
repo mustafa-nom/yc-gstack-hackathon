@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "BrainPost — AI Content Agent",
-  description: "AI-powered TikTok content agent",
+  title: "GPost — Your personal AI GMO",
+  description: "Your personal AI GMO",
 };
 
 export default function RootLayout({

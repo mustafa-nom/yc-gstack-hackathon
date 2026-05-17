@@ -1,4 +1,5 @@
-const BACKEND = "http://localhost:8000";
+const BACKEND =
+  process.env.NEXT_PUBLIC_CAROUSEL_BACKEND_URL ?? "http://localhost:8000";
 const CACHE_PREFIX = "brainpost.carousel";
 
 export type CarouselResult = {
@@ -10,14 +11,31 @@ type Persona = Record<string, unknown>;
 
 const inflight = new Map<string, Promise<CarouselResult | null>>();
 
-function cacheKey(count: number): string {
-  return `${CACHE_PREFIX}.${count}`;
+function hashPersona(persona: Persona): string {
+  if (!persona || Object.keys(persona).length === 0) return "default";
+  try {
+    const json = JSON.stringify(persona);
+    let h = 5381;
+    for (let i = 0; i < json.length; i++) {
+      h = ((h << 5) + h + json.charCodeAt(i)) | 0;
+    }
+    return (h >>> 0).toString(36);
+  } catch {
+    return "default";
+  }
 }
 
-export function readCachedCarousel(count: number): CarouselResult | null {
+function cacheKey(count: number, persona: Persona = {}): string {
+  return `${CACHE_PREFIX}.${count}.${hashPersona(persona)}`;
+}
+
+export function readCachedCarousel(
+  count: number,
+  persona: Persona = {},
+): CarouselResult | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.sessionStorage.getItem(cacheKey(count));
+    const raw = window.sessionStorage.getItem(cacheKey(count, persona));
     if (!raw) return null;
     const parsed = JSON.parse(raw) as CarouselResult;
     if (!Array.isArray(parsed.imageUrls) || parsed.imageUrls.length === 0) return null;
@@ -27,10 +45,14 @@ export function readCachedCarousel(count: number): CarouselResult | null {
   }
 }
 
-function writeCachedCarousel(count: number, data: CarouselResult): void {
+function writeCachedCarousel(
+  count: number,
+  persona: Persona,
+  data: CarouselResult,
+): void {
   if (typeof window === "undefined") return;
   try {
-    window.sessionStorage.setItem(cacheKey(count), JSON.stringify(data));
+    window.sessionStorage.setItem(cacheKey(count, persona), JSON.stringify(data));
   } catch {
     // ignore quota / privacy errors
   }
@@ -87,44 +109,46 @@ export function ensureCarousel(opts: {
 }): Promise<CarouselResult | null> {
   if (typeof window === "undefined") return Promise.resolve(null);
   const { count, persona = {} } = opts;
+  const key = cacheKey(count, persona);
 
-  const cached = readCachedCarousel(count);
+  const cached = readCachedCarousel(count, persona);
   if (cached) return Promise.resolve(cached);
 
-  const existing = inflight.get(cacheKey(count));
+  const existing = inflight.get(key);
   if (existing) return existing;
 
   const p = streamGenerate(count, persona)
     .then((result) => {
-      if (result) writeCachedCarousel(count, result);
+      if (result) writeCachedCarousel(count, persona, result);
       return result;
     })
     .catch(() => null)
     .finally(() => {
-      inflight.delete(cacheKey(count));
+      inflight.delete(key);
     });
 
-  inflight.set(cacheKey(count), p);
+  inflight.set(key, p);
   return p;
 }
 
 export function prewarmCarousel(opts: { count?: number; persona?: Persona } = {}): void {
   if (typeof window === "undefined") return;
   const count = opts.count ?? 1;
-  if (readCachedCarousel(count)) return;
-  void ensureCarousel({ count, persona: opts.persona });
+  const persona = opts.persona ?? {};
+  if (readCachedCarousel(count, persona)) return;
+  void ensureCarousel({ count, persona });
 }
 
-export function isCarouselInflight(count: number): boolean {
-  return inflight.has(cacheKey(count));
+export function isCarouselInflight(count: number, persona: Persona = {}): boolean {
+  return inflight.has(cacheKey(count, persona));
 }
 
-export function clearCachedCarousel(count: number): void {
+export function clearCachedCarousel(count: number, persona: Persona = {}): void {
   if (typeof window === "undefined") return;
   try {
-    window.sessionStorage.removeItem(cacheKey(count));
+    window.sessionStorage.removeItem(cacheKey(count, persona));
   } catch {
     // ignore
   }
-  inflight.delete(cacheKey(count));
+  inflight.delete(cacheKey(count, persona));
 }

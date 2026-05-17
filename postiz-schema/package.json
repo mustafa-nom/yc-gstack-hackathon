@@ -1,0 +1,12 @@
+{
+  "name": "postiz-schema",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Isolated copy of the Postiz Prisma schema, used to provision the local Postgres database. Not a Postiz install.",
+  "scripts": {
+    "db:push": "prisma db push --schema=./schema.prisma --skip-generate --accept-data-loss"
+  },
+  "devDependencies": {
+    "prisma": "^6.0.0"
+  }
+}

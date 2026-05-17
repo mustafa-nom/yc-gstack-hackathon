@@ -13,7 +13,7 @@ export async function pushToTiktok(input: {
   if (process.env.RUN_REAL_TIKTOK_PUSH !== "1") {
     return {
       posted: true,
-      postUrl: `https://tiktok.com/@brainpost/preview/${input.nicheSlug}`,
+      postUrl: `https://tiktok.com/@gpost/preview/${input.nicheSlug}`,
       message: `[mock] Posted ${input.nicheSlug} carousel to TikTok. Set RUN_REAL_TIKTOK_PUSH=1 to actually post.`,
       mocked: true,
     };

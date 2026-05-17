@@ -20,7 +20,7 @@ export default function Dashboard({ scanResult }: { scanResult: ScanResult }) {
       <header className="border-b border-card-border">
         <div className="max-w-4xl mx-auto px-6 flex items-center justify-between h-14">
           <span className="text-sm font-semibold tracking-tight text-foreground/80">
-            BrainPost
+            GPost
           </span>
           <nav className="flex gap-1">
             {(["studio", "performance"] as const).map((t) => (

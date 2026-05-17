@@ -10,6 +10,7 @@ export type OnboardInput = {
   website: string;
   description?: string;
   referenceTiktok?: string;
+  nicheCount?: number;
 };
 
 export type OnboardOutput = {
@@ -48,10 +49,12 @@ export async function startOnboarding(input: OnboardInput): Promise<OnboardOutpu
       }
 
       log(runId, "Inferring ICP and niches via Claude…", "info", "icp");
+      const nicheCount = Math.max(1, Math.min(20, input.nicheCount ?? 5));
       const icp = await inferIcp({
         website: input.website,
         description: input.description,
         websiteContent: siteContent,
+        nicheCount,
       });
       log(
         runId,

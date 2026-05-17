@@ -3,18 +3,24 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Zap, Loader2 } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
 import { startOnboarding } from "@/app/actions/onboard";
 import type { GraphEvent } from "@/lib/graph-bus";
 import { setStoredRunId } from "@/lib/run-context";
+import { GPostLogo } from "@/components/GPostLogo";
 
 const STEP_ORDER = [
   "welcome",
   "website",
   "description",
   "tiktok",
+  "clusters",
   "scanning",
 ] as const;
+
+const DEFAULT_CLUSTERS = 5;
+const MIN_CLUSTERS = 1;
+const MAX_CLUSTERS = 20;
 
 type Step = (typeof STEP_ORDER)[number];
 
@@ -23,6 +29,7 @@ export default function OnboardingFlow() {
   const [website, setWebsite] = useState("");
   const [description, setDescription] = useState("");
   const [tiktok, setTiktok] = useState("");
+  const [clusters, setClusters] = useState<number>(DEFAULT_CLUSTERS);
   const [submitting, setSubmitting] = useState(false);
   const [runId, setRunId] = useState<string | null>(null);
   const [logLines, setLogLines] = useState<{ text: string; level: "info" | "success" | "warn" | "error" }[]>([]);
@@ -72,6 +79,7 @@ export default function OnboardingFlow() {
         website,
         description,
         referenceTiktok: tiktok,
+        nicheCount: clusters,
       });
       setRunId(result.runId);
       setStoredRunId(result.runId);
@@ -81,7 +89,7 @@ export default function OnboardingFlow() {
       console.error("[onboarding] launch failed:", msg);
       setSubmitting(false);
     }
-  }, [submitting, website, description, tiktok]);
+  }, [submitting, website, description, tiktok, clusters]);
 
   useEffect(() => {
     if (step !== "scanning" || !runId) return;
@@ -172,9 +180,14 @@ export default function OnboardingFlow() {
         <AnimatePresence mode="wait">
           {step === "welcome" && (
             <motion.div key="welcome" {...motionProps} className="text-center max-w-md">
-              <div className="inline-flex items-center gap-2.5 mb-8">
-                <Zap className="w-6 h-6 text-accent" />
-                <span className="text-xl font-semibold tracking-tight">BrainPost</span>
+              <div className="inline-flex flex-col items-center gap-1 mb-8">
+                <div className="inline-flex items-center gap-2.5">
+                  <GPostLogo size={28} />
+                  <span className="text-xl font-semibold tracking-tight">GPost</span>
+                </div>
+                <p className="text-[11px] uppercase tracking-[0.18em] text-muted">
+                  Your personal AI GMO
+                </p>
               </div>
               <h1 className="text-3xl font-semibold tracking-tight mb-3">
                 Build your content strategy
@@ -273,34 +286,74 @@ export default function OnboardingFlow() {
                 placeholder="https://tiktok.com/@creator/video/..."
                 value={tiktok}
                 onChange={(e) => setTiktok(e.target.value)}
+                onKeyDown={(e) =>
+                  handleKeyDown(
+                    e,
+                    () => goNext("tiktok"),
+                    () => goNext("tiktok"),
+                  )
+                }
+                className="w-full bg-transparent border-b border-card-border py-3 text-lg text-foreground placeholder:text-muted/40 focus:outline-none focus:border-accent transition-colors"
+              />
+              <StepNav
+                onBack={() => goBack("tiktok")}
+                onNext={() => goNext("tiktok")}
+                nextDisabled={false}
+                onSkip={() => goNext("tiktok")}
+              />
+            </motion.div>
+          )}
+
+          {step === "clusters" && (
+            <motion.div key="clusters" {...motionProps} className="w-full max-w-lg">
+              <p className="text-sm text-muted mb-2 font-mono">
+                {String(inputStepNum).padStart(2, "0")}
+              </p>
+              <h2 className="text-2xl font-semibold tracking-tight mb-2">
+                How many niche clusters?
+              </h2>
+              <p className="text-muted text-sm mb-8">
+                We&apos;ll spin up one research agent per cluster to build your graph.
+                Between {MIN_CLUSTERS} and {MAX_CLUSTERS}.
+              </p>
+              <input
+                ref={inputRef}
+                type="number"
+                min={MIN_CLUSTERS}
+                max={MAX_CLUSTERS}
+                step={1}
+                value={clusters}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  if (raw === "") {
+                    setClusters(DEFAULT_CLUSTERS);
+                    return;
+                  }
+                  const parsed = Number.parseInt(raw, 10);
+                  if (Number.isNaN(parsed)) return;
+                  setClusters(
+                    Math.max(MIN_CLUSTERS, Math.min(MAX_CLUSTERS, parsed)),
+                  );
+                }}
                 onKeyDown={(e) => handleKeyDown(e, () => launch(), () => launch())}
                 className="w-full bg-transparent border-b border-card-border py-3 text-lg text-foreground placeholder:text-muted/40 focus:outline-none focus:border-accent transition-colors"
               />
               <div className="flex items-center justify-between mt-8">
                 <button
-                  onClick={() => goBack("tiktok")}
+                  onClick={() => goBack("clusters")}
                   className="text-sm text-muted hover:text-foreground transition-colors cursor-pointer"
                   disabled={submitting}
                 >
                   Back
                 </button>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => launch()}
-                    className="text-sm text-muted hover:text-foreground transition-colors cursor-pointer disabled:opacity-50"
-                    disabled={submitting}
-                  >
-                    Skip
-                  </button>
-                  <button
-                    onClick={() => launch()}
-                    disabled={submitting}
-                    className="inline-flex items-center gap-2 bg-accent hover:bg-accent-hover disabled:opacity-50 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer disabled:cursor-wait"
-                  >
-                    {submitting ? "Launching…" : "Launch agents"}
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+                <button
+                  onClick={() => launch()}
+                  disabled={submitting}
+                  className="inline-flex items-center gap-2 bg-accent hover:bg-accent-hover disabled:opacity-50 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer disabled:cursor-wait"
+                >
+                  {submitting ? "Launching…" : "Launch agents"}
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
               </div>
             </motion.div>
           )}

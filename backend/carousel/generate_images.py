@@ -25,8 +25,8 @@ from google.genai import types
 
 load_dotenv()
 
-MODEL_ID = "gemini-3-pro-image-preview"
-MAX_RETRIES = 3
+MODEL_ID = "gemini-2.5-flash-image"
+MAX_RETRIES = 4
 BACKOFF_BASE = 2.0
 
 
@@ -39,7 +39,6 @@ async def generate_image(client, prompt, aspect_ratio):
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     response_modalities=["IMAGE", "TEXT"],
-                    image_config=types.ImageConfig(aspect_ratio=aspect_ratio),
                 ),
             )
             for part in response.candidates[0].content.parts:
@@ -153,7 +152,7 @@ async def run(args):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Generate slide background images via Gemini")
+    parser = argparse.ArgumentParser(description="Generate slide background images via OpenAI gpt-image-1")
     parser.add_argument("--data", default="output/slide_data.json")
     parser.add_argument("--output-dir", "-o", default="output/backgrounds")
     parser.add_argument("--persona", default="persona.yaml")

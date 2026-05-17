@@ -6,6 +6,8 @@ import { transformAndWrite, nicheSlugFromName } from "./transformer";
 import { strategyToGraph } from "../graph-store";
 import { graphBus } from "../graph-bus";
 import { synthesizeStrategyFromCaptions } from "../agents/synthesize";
+import { buildPersonaForStrategy } from "../agents/persona-builder";
+import { writeJson } from "../state";
 import type { Strategy } from "./schema";
 
 export type NicheRunInput = {
@@ -92,6 +94,30 @@ export async function runNicheIngestion(
       `Strategy ready · ${strategy.hooks.length} hooks · ${strategy.creators.length} creators · ${strategy.hashtags.primary_cluster.length} hashtags`,
       "success",
     );
+    await writeJson(`strategies/${runId}-${nicheSlug}.json`, {
+      runId,
+      niche,
+      nicheSlug,
+      group,
+      generatedAt: new Date().toISOString(),
+      strategy,
+    });
+
+    void buildPersonaForStrategy({ niche, strategy })
+      .then((persona) =>
+        writeJson(`personas-generated/${runId}-${nicheSlug}.json`, {
+          runId,
+          niche,
+          nicheSlug,
+          generatedAt: new Date().toISOString(),
+          persona,
+        }),
+      )
+      .then(() => log(`Persona built for ${niche}`, "success"))
+      .catch((err) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        log(`persona build failed: ${msg}`, "warn");
+      });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     publish({ kind: "error", niche, message: `synthesis failed: ${msg}` });

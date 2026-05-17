@@ -277,7 +277,7 @@ export default function ContentCalendar() {
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto">
+              <div className="flex-1 overflow-y-auto overscroll-contain" data-lenis-prevent>
                 {/* Thumbnail */}
                 {selected.thumbnail && (
                   // eslint-disable-next-line @next/next/no-img-element

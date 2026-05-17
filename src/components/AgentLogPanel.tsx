@@ -10,12 +10,19 @@ import {
   ArrowRight,
   Check,
   Send,
-  Bot,
 } from "lucide-react";
 import type { GraphEvent } from "@/lib/graph-bus";
 import { generateDesigns } from "@/app/actions/generate-designs";
 import { pushToTiktok } from "@/app/actions/push-to-tiktok";
 import { nicheSlugFromName } from "@/lib/slugs";
+import {
+  ChainOfThought,
+  ChainOfThoughtContent,
+  ChainOfThoughtItem,
+  ChainOfThoughtStep,
+  ChainOfThoughtTrigger,
+} from "@/components/prompt-kit/chain-of-thought";
+import { GPostLogo } from "@/components/GPostLogo";
 
 type LogLine = {
   ts: string;
@@ -149,24 +156,10 @@ export function AgentLogPanel({
     <aside className="fixed top-0 bottom-0 left-0 z-20 w-full sm:w-[460px] lg:w-[520px] flex flex-col">
       <div className="h-full flex flex-col bg-card-bg/85 border-r border-card-border backdrop-blur-md">
         <header className="px-5 py-4 border-b border-card-border flex items-center gap-2.5">
-          <div className="relative">
-            <div className="w-7 h-7 rounded-md bg-gradient-to-br from-accent/30 to-accent/10 border border-accent/30 flex items-center justify-center">
-              <Bot className="w-3.5 h-3.5 text-accent" />
-            </div>
-            <span
-              className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full ring-2 ring-card-bg ${
-                allReady ? "bg-success" : "bg-accent animate-pulse"
-              }`}
-            />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[11px] font-medium text-foreground/90 leading-tight">
-              BrainPost Agent
-            </p>
-            <p className="text-[9px] font-mono uppercase tracking-widest text-muted/70 mt-0.5">
-              {allReady ? "ready" : "thinking…"} · run · {runId.slice(-8)}
-            </p>
-          </div>
+          <GPostLogo size={22} />
+          <p className="text-[13px] font-semibold tracking-tight text-foreground">
+            GPost Agent
+          </p>
         </header>
 
         <div
@@ -227,117 +220,95 @@ export function AgentLogPanel({
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-                className="mt-3 pt-3 border-t border-card-border/80"
+                className="mt-4 pt-4 border-t border-card-border/80 px-2"
               >
-                <div className="flex items-start gap-2.5 px-2">
-                  <div className="w-5 h-5 rounded-md bg-accent/15 border border-accent/30 flex items-center justify-center shrink-0 mt-0.5">
-                    <Sparkles className="w-2.5 h-2.5 text-accent" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[10px] font-mono uppercase tracking-widest text-success">
-                      Strategies ready
-                    </p>
-                    <p className="text-[12px] text-foreground/90 font-sans mt-1 leading-relaxed">
-                      I synthesized <span className="font-semibold">{niches.length}</span>{" "}
-                      niche{niches.length === 1 ? "" : "s"} from the live graph. Pick one
-                      to generate designs, then push to TikTok.
-                    </p>
-                  </div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Sparkles className="w-3 h-3 text-accent" />
+                  <p className="text-[10px] font-mono uppercase tracking-widest text-success">
+                    Strategies ready
+                  </p>
                 </div>
 
-                <ul className="mt-3 space-y-2 px-1">
-                  {niches.map((niche, idx) => {
-                    const state =
-                      rowState[niche] ?? ({ status: "ready" } as NicheRowState);
-                    const isWorking =
-                      state.status === "generating" || state.status === "pushing";
-                    return (
-                      <motion.li
-                        key={niche}
-                        initial={{ opacity: 0, y: 6 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{
-                          duration: 0.3,
-                          delay: 0.05 + idx * 0.06,
-                          ease: [0.16, 1, 0.3, 1],
-                        }}
-                        className="group relative rounded-lg border border-card-border bg-subtle/40 hover:bg-subtle/70 hover:border-accent/30 transition-all overflow-hidden"
-                      >
-                        {isWorking && (
-                          <span
-                            aria-hidden
-                            className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-accent to-transparent shimmer-surface opacity-80"
-                          />
-                        )}
-                        <div className="flex items-center gap-3 px-3 py-2.5">
-                          <div className="flex items-center justify-center w-6 h-6 rounded-md bg-card-bg border border-card-border shrink-0">
-                            <span className="text-[10px] font-mono text-muted">
-                              {String(idx + 1).padStart(2, "0")}
-                            </span>
-                          </div>
-
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[13px] font-medium font-sans text-foreground truncate leading-tight">
-                              {niche}
-                            </p>
-                            {state.message ? (
-                              <p
-                                className={`text-[10px] font-mono mt-0.5 truncate ${
-                                  isWorking ? "shimmer-text" : "text-muted"
-                                }`}
-                              >
-                                {state.message}
-                              </p>
-                            ) : (
-                              <p className="text-[10px] font-mono text-muted/60 mt-0.5">
-                                tap generate to draft designs
-                              </p>
-                            )}
-                          </div>
-
-                          <div className="flex items-center shrink-0">
-                            {(state.status === "ready" ||
-                              state.status === "generating") && (
-                              <button
-                                onClick={() => onGenerate(niche)}
-                                disabled={state.status === "generating"}
-                                className="inline-flex items-center gap-1.5 bg-accent hover:bg-accent-hover text-white text-[11px] px-2.5 py-1.5 rounded-md font-medium font-sans transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-wait"
-                              >
-                                {state.status === "generating" ? (
-                                  <Loader2 className="w-3 h-3 animate-spin" />
+                <ChainOfThought>
+                  <ChainOfThoughtStep>
+                    <ChainOfThoughtTrigger>
+                      Synthesized {niches.length} niche
+                      {niches.length === 1 ? "" : "s"} from the live graph
+                    </ChainOfThoughtTrigger>
+                    <ChainOfThoughtContent>
+                      {niches.map((niche) => {
+                        const state =
+                          rowState[niche] ??
+                          ({ status: "ready" } as NicheRowState);
+                        const isWorking =
+                          state.status === "generating" ||
+                          state.status === "pushing";
+                        return (
+                          <ChainOfThoughtItem key={niche}>
+                            <div className="flex items-center gap-2.5">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[13px] font-medium text-foreground leading-tight truncate">
+                                  {niche}
+                                </p>
+                                {state.message ? (
+                                  <p
+                                    className={`text-[10px] font-mono mt-0.5 truncate ${
+                                      isWorking ? "shimmer-text" : "text-muted"
+                                    }`}
+                                  >
+                                    {state.message}
+                                  </p>
                                 ) : (
-                                  <ArrowRight className="w-3 h-3" />
+                                  <p className="text-[10px] font-mono text-muted/60 mt-0.5">
+                                    ready to generate
+                                  </p>
                                 )}
-                                Generate
-                              </button>
-                            )}
-                            {(state.status === "designed" ||
-                              state.status === "pushing") && (
-                              <button
-                                onClick={() => onPush(niche)}
-                                disabled={state.status === "pushing"}
-                                className="inline-flex items-center gap-1.5 bg-foreground hover:bg-foreground/90 text-background text-[11px] px-2.5 py-1.5 rounded-md font-medium font-sans transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-wait"
-                              >
-                                {state.status === "pushing" ? (
-                                  <Loader2 className="w-3 h-3 animate-spin" />
-                                ) : (
-                                  <Send className="w-3 h-3" />
+                              </div>
+                              <div className="shrink-0">
+                                {(state.status === "ready" ||
+                                  state.status === "generating") && (
+                                  <button
+                                    onClick={() => onGenerate(niche)}
+                                    disabled={state.status === "generating"}
+                                    className="inline-flex items-center gap-1.5 bg-accent hover:bg-accent-hover text-white text-[11px] px-2.5 py-1.5 rounded-md font-medium transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-wait"
+                                  >
+                                    {state.status === "generating" ? (
+                                      <Loader2 className="w-3 h-3 animate-spin" />
+                                    ) : (
+                                      <ArrowRight className="w-3 h-3" />
+                                    )}
+                                    Generate
+                                  </button>
                                 )}
-                                Push
-                              </button>
-                            )}
-                            {state.status === "pushed" && (
-                              <span className="inline-flex items-center gap-1.5 text-success text-[11px] px-2.5 py-1.5 font-sans font-medium">
-                                <Check className="w-3 h-3" />
-                                Posted
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </motion.li>
-                    );
-                  })}
-                </ul>
+                                {(state.status === "designed" ||
+                                  state.status === "pushing") && (
+                                  <button
+                                    onClick={() => onPush(niche)}
+                                    disabled={state.status === "pushing"}
+                                    className="inline-flex items-center gap-1.5 bg-foreground hover:bg-foreground/90 text-background text-[11px] px-2.5 py-1.5 rounded-md font-medium transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-wait"
+                                  >
+                                    {state.status === "pushing" ? (
+                                      <Loader2 className="w-3 h-3 animate-spin" />
+                                    ) : (
+                                      <Send className="w-3 h-3" />
+                                    )}
+                                    Push
+                                  </button>
+                                )}
+                                {state.status === "pushed" && (
+                                  <span className="inline-flex items-center gap-1.5 text-success text-[11px] px-2.5 py-1.5 font-medium">
+                                    <Check className="w-3 h-3" />
+                                    Posted
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </ChainOfThoughtItem>
+                        );
+                      })}
+                    </ChainOfThoughtContent>
+                  </ChainOfThoughtStep>
+                </ChainOfThought>
               </motion.div>
             )}
           </AnimatePresence>

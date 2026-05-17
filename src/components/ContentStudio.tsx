@@ -4,20 +4,27 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Layers, Loader2, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import type { StrategyData } from "@/types";
+import type { StrategyView } from "@/app/actions/strategy";
 import {
   ensureCarousel,
   readCachedCarousel,
   prewarmCarousel,
   clearCachedCarousel,
+  isCarouselInflight,
 } from "@/lib/carousel-prefetch";
+
+const BACKEND_URL =
+  process.env.NEXT_PUBLIC_CAROUSEL_BACKEND_URL ?? "http://localhost:8000";
 
 type GenerateState = "idle" | "generating" | "done" | "error";
 
 export default function ContentStudio({
   strategy,
+  view,
   persona,
 }: {
   strategy: StrategyData;
+  view?: StrategyView;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   persona?: Record<string, any>;
 }) {
@@ -28,14 +35,47 @@ export default function ContentStudio({
   const [count, setCount] = useState(1);
 
   useEffect(() => {
-    if (!readCachedCarousel(count)) {
+    // Rehydrate state from the singleton cache / inflight promise so that
+    // navigating away and back doesn't reset an in-progress (or completed)
+    // generation. Wrapped in queueMicrotask to avoid React's "synchronous
+    // setState in effect" warning — the cache lives in a module singleton,
+    // so this is genuinely an external-state subscription.
+    let active = true;
+    queueMicrotask(() => {
+      if (!active) return;
+      const cached = readCachedCarousel(count, persona ?? {});
+      if (cached) {
+        setImageUrls(cached.imageUrls);
+        setGenLogs(cached.logs);
+        setActiveSlide(0);
+        setGenState("done");
+        return;
+      }
+      if (isCarouselInflight(count, persona ?? {})) {
+        setGenState("generating");
+        ensureCarousel({ count, persona: persona ?? {} }).then((result) => {
+          if (!active) return;
+          if (result) {
+            setImageUrls(result.imageUrls);
+            setGenLogs(result.logs);
+            setActiveSlide(0);
+            setGenState("done");
+          } else {
+            setGenState("error");
+          }
+        });
+        return;
+      }
       prewarmCarousel({ count, persona: persona ?? {} });
-    }
+    });
+    return () => {
+      active = false;
+    };
   }, [count, persona]);
 
   const generateImages = async ({ force }: { force?: boolean } = {}) => {
     if (!force) {
-      const cached = readCachedCarousel(count);
+      const cached = readCachedCarousel(count, persona ?? {});
       if (cached) {
         setImageUrls(cached.imageUrls);
         setGenLogs(cached.logs);
@@ -44,7 +84,7 @@ export default function ContentStudio({
         return;
       }
     } else {
-      clearCachedCarousel(count);
+      clearCachedCarousel(count, persona ?? {});
     }
 
     setGenState("generating");
@@ -73,23 +113,91 @@ export default function ContentStudio({
 
       {/* Strategy */}
       <section className="mb-12">
-        <h2 className="text-xs text-muted uppercase tracking-widest mb-5 font-medium">Strategy</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-          <StrategyCard label="Hook Pattern" value={strategy.hookPattern} />
-          <StrategyCard label="Structure" value={strategy.slideStructure} />
-          <StrategyCard label="CTA Style" value={strategy.ctaStyle} />
-        </div>
-        <div className="mt-6 flex items-center gap-4">
-          <div className="flex-1 h-1 bg-subtle rounded-full overflow-hidden">
-            <motion.div
-              className="h-full bg-accent rounded-full"
-              initial={{ width: 0 }}
-              animate={{ width: `${strategy.nicheScore}%` }}
-              transition={{ duration: 1, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            />
+        <h2 className="text-xs text-muted uppercase tracking-widest mb-5 font-medium">
+          Strategy
+        </h2>
+        {view ? (
+          <div className="space-y-5">
+            <div className="bg-card-bg border border-card-border rounded-xl p-6">
+              <p className="text-[10px] text-muted/60 uppercase tracking-widest mb-2">
+                Niche
+              </p>
+              <p className="text-lg font-semibold leading-tight text-foreground">
+                {view.niche}
+              </p>
+              <p className="text-sm text-muted leading-relaxed mt-3">
+                {view.nicheSummary}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <Stat label="Hooks" value={view.hookCount} />
+              <Stat label="Creators" value={view.creatorCount} />
+              <Stat label="Hashtags" value={view.hashtagCount} />
+            </div>
+
+            <div className="bg-card-bg border border-card-border rounded-xl p-6">
+              <div className="flex items-baseline justify-between mb-3">
+                <p className="text-[10px] text-muted/60 uppercase tracking-widest">
+                  Dominant pattern
+                </p>
+                <span className="text-[11px] font-mono text-muted">
+                  {view.archetype}
+                </span>
+              </div>
+              <blockquote className="text-sm text-foreground/90 leading-relaxed border-l-2 border-accent/40 pl-3">
+                &ldquo;{view.topHook}&rdquo;
+              </blockquote>
+              {view.topHookWhy && (
+                <p className="text-xs text-muted mt-2 ml-1 italic">
+                  {view.topHookWhy}
+                </p>
+              )}
+            </div>
+
+            {view.primaryHashtags.length > 0 && (
+              <div>
+                <p className="text-[10px] text-muted/60 uppercase tracking-widest mb-2">
+                  Hashtags
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {view.primaryHashtags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="text-[11px] font-mono px-2 py-1 rounded bg-subtle text-foreground/80"
+                    >
+                      #{tag.replace(/^#/, "")}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {view.topCreators.length > 0 && (
+              <div>
+                <p className="text-[10px] text-muted/60 uppercase tracking-widest mb-2">
+                  Top creators in this niche
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {view.topCreators.map((handle) => (
+                    <span
+                      key={handle}
+                      className="text-[11px] font-mono px-2 py-1 rounded border border-card-border text-foreground/80"
+                    >
+                      @{handle.replace(/^@/, "")}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-          <span className="text-xs font-mono text-muted">{strategy.nicheScore}% niche fit</span>
-        </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            <StrategyCard label="Hook Pattern" value={strategy.hookPattern} />
+            <StrategyCard label="Structure" value={strategy.slideStructure} />
+            <StrategyCard label="CTA Style" value={strategy.ctaStyle} />
+          </div>
+        )}
       </section>
 
       {/* Carousel section */}
@@ -187,7 +295,7 @@ export default function ContentStudio({
                 </button>
                 <motion.img
                   key={activeSlide}
-                  src={`http://localhost:8000${imageUrls[activeSlide]}`}
+                  src={`${BACKEND_URL}${imageUrls[activeSlide]}`}
                   alt={`Slide ${activeSlide + 1}`}
                   initial={{ opacity: 0, scale: 0.97 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -208,7 +316,7 @@ export default function ContentStudio({
                 {imageUrls.map((url, i) => (
                   <button key={i} onClick={() => setActiveSlide(i)} className="cursor-pointer flex-shrink-0">
                     <img
-                      src={`http://localhost:8000${url}`}
+                      src={`${BACKEND_URL}${url}`}
                       alt={`Slide ${i + 1}`}
                       className={`w-14 rounded-md transition-all ${
                         i === activeSlide ? "ring-2 ring-accent" : "opacity-40 hover:opacity-70"
@@ -251,6 +359,17 @@ function StrategyCard({ label, value }: { label: string; value: string }) {
     <div className="bg-card-bg border border-card-border rounded-xl p-4">
       <p className="text-[10px] text-muted/60 uppercase tracking-widest mb-2">{label}</p>
       <p className="text-sm text-foreground/80 leading-relaxed">{value}</p>
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="bg-card-bg border border-card-border rounded-xl p-4 text-center">
+      <p className="text-2xl font-semibold tabular-nums text-foreground">{value}</p>
+      <p className="text-[10px] text-muted/60 uppercase tracking-widest mt-1">
+        {label}
+      </p>
     </div>
   );
 }

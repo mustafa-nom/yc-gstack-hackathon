@@ -7,7 +7,7 @@ import type { GraphNode } from "@/lib/graph-bus";
 import { DossierPanel } from "@/components/DossierPanel";
 import { AgentLogPanel } from "@/components/AgentLogPanel";
 import { setStoredRunId } from "@/lib/run-context";
-import { prewarmCarousel } from "@/lib/carousel-prefetch";
+import NavTabs from "@/components/NavTabs";
 
 const LiveGraph = dynamic(
   () => import("@/components/LiveGraph").then((m) => m.LiveGraph),
@@ -25,10 +25,6 @@ function GraphPageInner() {
     if (runId) setStoredRunId(runId);
   }, [runId]);
 
-  useEffect(() => {
-    if (allReady) prewarmCarousel({ count: 1 });
-  }, [allReady]);
-
   if (!runId) {
     return (
       <div className="min-h-screen flex items-center justify-center text-muted">
@@ -36,8 +32,6 @@ function GraphPageInner() {
       </div>
     );
   }
-
-  const perfHref = `/performance?runId=${encodeURIComponent(runId)}`;
 
   return (
     <div className="min-h-screen relative bg-background overflow-hidden">
@@ -52,25 +46,13 @@ function GraphPageInner() {
 
       <AgentLogPanel runId={runId} allReady={allReady} niches={readyNiches} />
 
-      <div className="fixed top-4 right-4 z-30 flex items-center gap-2 pointer-events-none">
-        {readyNiches.length > 0 && (
-          <div className="pointer-events-auto bg-card-bg/80 border border-card-border rounded px-3 py-1.5 backdrop-blur-sm">
-            <p className="text-[10px] font-mono uppercase tracking-widest text-muted">
-              {readyNiches.length} / 3 niches ready
-            </p>
-          </div>
-        )}
-        <a
-          href={perfHref}
-          className="pointer-events-auto bg-card-bg/80 border border-card-border rounded px-3 py-1.5 backdrop-blur-sm text-[10px] font-mono uppercase tracking-widest text-muted hover:text-foreground transition-colors"
-        >
-          Performance →
-        </a>
+      <div className="fixed top-4 right-4 z-30 pointer-events-none">
+        <NavTabs variant="floating" />
       </div>
 
       <div className="fixed top-5 left-4 sm:left-[476px] lg:left-[536px] z-20 pointer-events-none font-mono">
         <p className="text-[22px] font-bold tracking-tight leading-none text-foreground/90">
-          BrainPost
+          GPost
         </p>
         <p className="text-[9px] uppercase tracking-widest text-muted/60 mt-1.5">
           live ingestion · niche graph
