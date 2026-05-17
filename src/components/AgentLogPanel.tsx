@@ -13,10 +13,8 @@ import {
   Bot,
 } from "lucide-react";
 import type { GraphEvent } from "@/lib/graph-bus";
-// Carousel + push actions deferred to a follow-up PR.
-const generateDesigns = async (_: { niche: string }): Promise<{ mocked: boolean; exitCode: number }> => {
-  throw new Error("generateDesigns is not enabled in this build");
-};
+import { generateDesigns } from "@/app/actions/generate-designs";
+// pushToTiktok lands in Phase 3 — stubbed for now.
 const pushToTiktok = async (_: { nicheSlug: string }): Promise<{ message: string }> => {
   throw new Error("pushToTiktok is not enabled in this build");
 };
