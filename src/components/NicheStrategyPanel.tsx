@@ -36,22 +36,20 @@ export function NicheStrategyPanel({
 
   async function onGenerate(niche: string) {
     setStatus(niche, { status: "generating", message: "Generating designs…" });
-    startTransition(async () => {
-      try {
-        const result = await generateDesigns({ niche });
-        setStatus(niche, {
-          status: "designed",
-          message: result.mocked
-            ? `Mock designs ready for ${niche}`
-            : `Designs ready (exit ${result.exitCode})`,
-          contextLog: result.contextLog,
-        });
-        router.push("/content");
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        setStatus(niche, { status: "ready", message: `error: ${msg}` });
-      }
-    });
+    try {
+      const result = await generateDesigns({ niche });
+      setStatus(niche, {
+        status: "designed",
+        message: result.mocked
+          ? `Mock designs ready for ${niche}`
+          : `Designs ready (exit ${result.exitCode})`,
+        contextLog: result.contextLog,
+      });
+      router.push("/content");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setStatus(niche, { status: "ready", message: `error: ${msg}` });
+    }
   }
 
   async function onPush(niche: string) {
