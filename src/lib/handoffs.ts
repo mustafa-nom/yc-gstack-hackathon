@@ -25,6 +25,7 @@ export type DesignBrief = {
   personaPath: string;
   topics: string[];
   referenceTiktok?: string;
+  contextLog: string[]; // reasoning lines for the UI
 };
 
 // ---------------------------------------------------------------------------
@@ -116,23 +117,39 @@ export async function prepareDesignBrief(input: {
   niche: string;
 }): Promise<DesignBrief> {
   const slug = nicheSlugFromName(input.niche);
-  const personaPath = await writePersonaForNiche(input.niche);
+  const contextLog: string[] = [];
 
-  // Topic seeds — use winning hooks from GBrain niche page
-  const page = (await getPage(`niches/${slug}`)) ?? "";
-  const hooks = extractHooks(page).slice(0, 3);
-  const topics = hooks.length
-    ? hooks
-    : [
-        `${input.niche} essentials`,
-        `common ${input.niche} mistakes`,
-        `${input.niche} quick wins`,
-      ];
-
-  // Reference TikTok account — read from GBrain, fall back to user state
-  const referenceFromGbrain = await readReferenceAccount();
+  // Product context
   const user = await readUserState();
+  if (user?.website) contextLog.push(`product: ${user.website}`);
+  if (user?.description) contextLog.push(`description: ${user.description}`);
+  if (user?.icp) contextLog.push(`icp: ${user.icp.slice(0, 120)}${user.icp.length > 120 ? "…" : ""}`);
+
+  // Niche context from GBrain
+  const page = (await getPage(`niches/${slug}`)) ?? "";
+  const voice = extractVoice(page);
+  const allHooks = extractHooks(page);
+  const antiPatterns = extractAntiPatterns(page);
+
+  if (voice) contextLog.push(`voice: ${voice}`);
+  if (allHooks.length) contextLog.push(`hooks found in gbrain: ${allHooks.length}`);
+  if (antiPatterns.length) contextLog.push(`anti-patterns: ${antiPatterns.slice(0, 3).join(" · ")}`);
+
+  // Topic seeds
+  const topics = allHooks.length
+    ? allHooks.slice(0, 3)
+    : [`${input.niche} essentials`, `common ${input.niche} mistakes`, `${input.niche} quick wins`];
+
+  contextLog.push(`topics: ${topics.map((t) => `"${t}"`).join(" · ")}`);
+
+  // Reference TikTok account
+  const referenceFromGbrain = await readReferenceAccount();
   const referenceTiktok = referenceFromGbrain ?? user?.referenceTiktok;
+  if (referenceTiktok) contextLog.push(`reference account: ${referenceTiktok}`);
+  else contextLog.push("reference account: none — using generic prompts");
+
+  const personaPath = await writePersonaForNiche(input.niche);
+  contextLog.push(`persona written: ${personaPath.split("/").slice(-1)[0]}`);
 
   return {
     nicheSlug: slug,
@@ -140,6 +157,7 @@ export async function prepareDesignBrief(input: {
     personaPath,
     topics,
     referenceTiktok,
+    contextLog,
   };
 }
 

@@ -6,6 +6,7 @@ import { prepareDesignBrief, type DesignBrief } from "@/lib/handoffs";
 
 export type GenerateDesignsResult = {
   brief: DesignBrief;
+  contextLog: string[];
   output: string;
   exitCode: number;
   mocked: boolean;
@@ -25,6 +26,7 @@ export async function generateDesigns(input: {
   if (process.env.RUN_REAL_DESIGN_PIPELINE !== "1") {
     return {
       brief,
+      contextLog: brief.contextLog,
       output: [
         "[mock] generate_carousel.py would run with:",
         `  persona: ${brief.personaPath}`,
@@ -49,7 +51,7 @@ export async function generateDesigns(input: {
   ];
 
   const { stdout, exitCode } = await runPython(args, CAROUSEL_DIR);
-  return { brief, output: stdout, exitCode, mocked: false };
+  return { brief, contextLog: brief.contextLog, output: stdout, exitCode, mocked: false };
 }
 
 function runPython(

@@ -12,6 +12,7 @@ type NicheStatus = "ready" | "generating" | "designed" | "pushing" | "pushed";
 type NicheRowState = {
   status: NicheStatus;
   message?: string;
+  contextLog?: string[];
 };
 
 export function NicheStrategyPanel({
@@ -41,6 +42,7 @@ export function NicheStrategyPanel({
           message: result.mocked
             ? `Mock designs ready for ${niche}`
             : `Designs ready (exit ${result.exitCode})`,
+          contextLog: result.contextLog,
         });
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -86,16 +88,17 @@ export function NicheStrategyPanel({
               return (
                 <li
                   key={niche}
-                  className="flex items-center justify-between gap-3 border-t border-card-border pt-2 first:border-0 first:pt-0"
+                  className="border-t border-card-border pt-2 first:border-0 first:pt-0"
                 >
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium truncate">{niche}</p>
-                    {state.message && (
-                      <p className="text-[10px] font-mono text-muted truncate">
-                        {state.message}
-                      </p>
-                    )}
-                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium truncate">{niche}</p>
+                      {state.message && (
+                        <p className="text-[10px] font-mono text-muted truncate">
+                          {state.message}
+                        </p>
+                      )}
+                    </div>
                   <div className="flex items-center gap-1.5">
                     {(state.status === "ready" || state.status === "generating") && (
                       <button
@@ -132,6 +135,25 @@ export function NicheStrategyPanel({
                       </span>
                     )}
                   </div>
+                  </div>{/* end justify-between row */}
+
+                  {/* GBrain context log */}
+                  {state.contextLog && state.contextLog.length > 0 && (
+                    <div className="mt-2 bg-subtle/50 rounded px-3 py-2 font-mono text-[10px] leading-relaxed space-y-0.5 max-h-32 overflow-y-auto">
+                      {state.contextLog.map((line, i) => {
+                        const [key, ...rest] = line.split(": ");
+                        return (
+                          <div key={i} className="flex gap-1.5">
+                            <span className="text-accent shrink-0">›</span>
+                            <span>
+                              <span className="text-muted/70">{key}:</span>{" "}
+                              <span className="text-foreground/80">{rest.join(": ")}</span>
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </li>
               );
             })}
