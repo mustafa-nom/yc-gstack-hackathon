@@ -71,7 +71,7 @@ export const HookEntry = z.object({
   text: z.string(),
   archetype: z.string(),
   creator_handle: z.string(),
-  source_url: z.string().url().or(z.string()).optional(),
+  source_url: z.string().optional(),
   why_it_works: z.string().optional(),
 });
 export type HookEntry = z.infer<typeof HookEntry>;
