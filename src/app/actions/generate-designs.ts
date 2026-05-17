@@ -31,7 +31,9 @@ export async function generateDesigns(input: {
         "[mock] generate_carousel.py would run with:",
         `  persona: ${brief.personaPath}`,
         `  topics: ${brief.topics.join(", ")}`,
-        brief.referenceTiktok ? `  account: ${brief.referenceTiktok}` : "",
+        brief.referencePosts?.length
+          ? `  references: ${brief.referencePosts.length} scraped posts`
+          : brief.referenceTiktok ? `  account: ${brief.referenceTiktok}` : "",
         "",
         "Set RUN_REAL_DESIGN_PIPELINE=1 to invoke the real pipeline.",
       ]
@@ -42,11 +44,18 @@ export async function generateDesigns(input: {
     };
   }
 
+  // Use pre-scraped post URLs if available, otherwise fall back to --account (slower)
+  const referenceArgs = brief.referencePosts?.length
+    ? brief.referencePosts.flatMap((url) => ["--reference", url])
+    : brief.referenceTiktok
+    ? ["--account", brief.referenceTiktok]
+    : [];
+
   const args = [
     "generate_carousel.py",
     "--persona",
     brief.personaPath,
-    ...(brief.referenceTiktok ? ["--account", brief.referenceTiktok] : []),
+    ...referenceArgs,
     ...brief.topics,
   ];
 

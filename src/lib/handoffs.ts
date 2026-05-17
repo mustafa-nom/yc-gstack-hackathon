@@ -3,6 +3,7 @@ import { getPage, parseFrontmatter } from "./gbrain";
 import { nicheSlugFromName } from "./hog/transformer";
 import { readUserState, brainpostPath } from "./state";
 import { promises as fs } from "node:fs";
+import { spawn } from "node:child_process";
 import path from "node:path";
 
 export type PersonaYaml = {
@@ -25,8 +26,39 @@ export type DesignBrief = {
   personaPath: string;
   topics: string[];
   referenceTiktok?: string;
+  referencePosts?: string[];
   contextLog: string[];
 };
+
+// ---------------------------------------------------------------------------
+// yt-dlp scraper — get top post URLs from a TikTok account
+// ---------------------------------------------------------------------------
+
+const YT_DLP = process.env.YT_DLP_BIN ?? "yt-dlp";
+
+function extractHandle(accountUrl: string): string {
+  const m = accountUrl.match(/tiktok\.com\/@([^/?#]+)/);
+  return m?.[1] ?? accountUrl.replace(/.*@/, "").replace(/[/?#].*/, "");
+}
+
+async function scrapeTopPostUrls(accountUrl: string, top = 7): Promise<string[]> {
+  return new Promise((resolve) => {
+    const child = spawn(
+      YT_DLP,
+      ["--flat-playlist", "--no-warnings", "--print", "%(id)s", "--playlist-items", `1:${top * 3}`, accountUrl],
+      { env: process.env },
+    );
+    let stdout = "";
+    child.stdout.on("data", (d: Buffer) => (stdout += d.toString()));
+    child.on("error", () => resolve([]));
+    child.on("close", (code) => {
+      if (code !== 0 && !stdout.trim()) { resolve([]); return; }
+      const handle = extractHandle(accountUrl);
+      const ids = stdout.split("\n").map((l) => l.trim()).filter(Boolean);
+      resolve(ids.slice(0, top).map((id) => `https://www.tiktok.com/@${handle}/video/${id}`));
+    });
+  });
+}
 
 // ---------------------------------------------------------------------------
 // GBrain readers
@@ -137,11 +169,23 @@ export async function prepareDesignBrief(input: {
 
   contextLog.push(`topics: ${topics.map((t) => `"${t}"`).join(" · ")}`);
 
-  // Reference TikTok account
+  // Reference TikTok account + scrape top posts via yt-dlp
   const referenceFromGbrain = await readReferenceAccount();
   const referenceTiktok = referenceFromGbrain ?? user?.referenceTiktok;
-  if (referenceTiktok) contextLog.push(`reference account: ${referenceTiktok}`);
-  else contextLog.push("reference account: none — using generic prompts");
+  let referencePosts: string[] = [];
+
+  if (referenceTiktok) {
+    contextLog.push(`reference account: ${referenceTiktok}`);
+    contextLog.push("scraping: fetching top posts via yt-dlp…");
+    referencePosts = await scrapeTopPostUrls(referenceTiktok, 7);
+    if (referencePosts.length > 0) {
+      contextLog.push(`scraped: ${referencePosts.length} posts found`);
+    } else {
+      contextLog.push("scraped: no posts found — style analysis will use generic prompts");
+    }
+  } else {
+    contextLog.push("reference account: none — using generic prompts");
+  }
 
   const personaPath = await writePersonaForNiche(input.niche);
   contextLog.push(`persona written: ${personaPath.split("/").slice(-1)[0]}`);
@@ -152,6 +196,7 @@ export async function prepareDesignBrief(input: {
     personaPath,
     topics,
     referenceTiktok,
+    referencePosts,
     contextLog,
   };
 }
