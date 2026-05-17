@@ -5,6 +5,7 @@ import { inferIcp, scrapeSite } from "@/lib/agents/icp";
 import { kickoffOrchestrator } from "@/lib/orchestrator";
 import { writeUserState, type UserState } from "@/lib/state";
 import { graphBus } from "@/lib/graph-bus";
+import { putPageDetached } from "@/lib/gbrain";
 
 export type OnboardInput = {
   website: string;
@@ -74,6 +75,15 @@ export async function startOnboarding(input: OnboardInput): Promise<OnboardOutpu
       };
       await writeUserState(state);
       log(runId, "personal.md written to .brainpost/", "info", "state");
+
+      if (input.referenceTiktok) {
+        putPageDetached("reference-tiktok-account", {
+          type: "config",
+          title: "Reference TikTok Account",
+          tags: ["tiktok", "reference", "style"],
+        }, `# Reference TikTok Account\n\n${input.referenceTiktok}\n`);
+        log(runId, `Reference account saved to GBrain: ${input.referenceTiktok}`, "info", "state");
+      }
 
       log(runId, `Spinning up ${icp.niches.length} niche workers in parallel`, "info", "orchestrator");
       await kickoffOrchestrator({

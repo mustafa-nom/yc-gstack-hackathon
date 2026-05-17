@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Loader2,
@@ -75,6 +76,7 @@ export function AgentLogPanel({
   const [lines, setLines] = useState<LogLine[]>([]);
   const [rowState, setRowState] = useState<Record<string, NicheRowState>>({});
   const [, startTransition] = useTransition();
+  const router = useRouter();
   const scrollerRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -116,20 +118,23 @@ export function AgentLogPanel({
 
   async function onGenerate(niche: string) {
     setStatus(niche, { status: "generating", message: "Generating designs…" });
-    startTransition(async () => {
-      try {
-        const result = await generateDesigns({ niche });
-        setStatus(niche, {
-          status: "designed",
-          message: result.mocked
-            ? `Mock designs ready`
-            : `Designs ready (exit ${result.exitCode})`,
-        });
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        setStatus(niche, { status: "ready", message: `error: ${msg}` });
-      }
-    });
+    try {
+      const result = await generateDesigns({ niche });
+      setStatus(niche, {
+        status: "designed",
+        message: result.mocked
+          ? `Mock designs ready`
+          : `Designs ready (exit ${result.exitCode})`,
+      });
+      sessionStorage.setItem(
+        "brainpost.lastGeneration",
+        JSON.stringify({ niche, contextLog: result.contextLog ?? [], mocked: result.mocked }),
+      );
+      router.push("/content");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setStatus(niche, { status: "ready", message: `error: ${msg}` });
+    }
   }
 
   async function onPush(niche: string) {

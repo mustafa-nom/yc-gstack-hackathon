@@ -90,28 +90,39 @@ def analyze_reference(images: List[Path], client: OpenAI) -> dict:
         {
             "type": "text",
             "text": textwrap.dedent("""
-                Analyze these TikTok carousel slides carefully. Extract two things:
+                Analyze these TikTok carousel slides carefully. Extract four things:
 
                 1. TEXT STYLE — how the on-slide text is written:
                    - hook_format: the structural pattern of the title/hook on slide 1
-                     (e.g. "Starts with a number + lowercase verb phrase", "Title-Case listicle")
                    - body_length: approximate word count for body text per slide
                    - casing: how titles and body text are cased
                    - tone_markers: list of adjectives describing the voice
-                     (e.g. ["gentle", "first-person", "reassuring", "casual"])
-                   - example_hooks: list of the actual title/hook text visible on the slides
-                     (transcribe verbatim what you can read)
+                   - example_hooks: list of the actual title/hook text visible on the slides (verbatim)
 
                 2. BACKGROUND AESTHETIC — the visual style of the background images:
-                   - lighting: describe the light quality, direction, and warmth
+                   - lighting: light quality, direction, and warmth
                    - scene_type: what kind of scene/setting is shown
                    - color_temperature: warm/cool/neutral + dominant hues
-                   - composition: how the shot is framed (close-up, wide, POV, flat-lay, etc.)
-                   - props: list of objects/elements visible in the backgrounds
-                   - mood: 2-3 adjectives describing the emotional tone of the imagery
-                   - gemini_prompt_fragment: a concise phrase (20-40 words) ready to be injected
-                     into a Gemini image generation prompt to reproduce this exact background style.
-                     Be specific about lighting, props, colors, and composition. No text in images.
+                   - composition: how the shot is framed
+                   - props: objects/elements visible in the backgrounds
+                   - mood: 2-3 adjectives describing emotional tone
+                   - gemini_prompt_fragment: a concise phrase (20-40 words) ready to inject into
+                     a Gemini image prompt to reproduce this exact background style. Be specific
+                     about lighting, props, colors, composition. No text in images.
+
+                3. TEXT OVERLAY STYLE — how text is rendered on top of images:
+                   - text_color: hex color of the text (e.g. "#FFFFFF")
+                   - overlay_opacity: estimated darkness of background scrim behind text
+                     (0.0 = none, 1.0 = fully black) as a float
+                   - font_size_title: estimated title font size in pixels (e.g. 52)
+                   - font_size_body: estimated body text font size in pixels (e.g. 36)
+                   - font_size_subtitle: estimated subtitle/supporting text font size in pixels
+                   - text_position: where the main text block sits — "top", "center", or "bottom"
+                   - slide_margin: estimated horizontal margin in pixels (e.g. 44)
+
+                4. FORMAT — structural details of the carousel:
+                   - slides_per_carousel: total number of slides including the title slide
+                   - aspect_ratio: "9:16" for vertical, "1:1" for square, etc.
 
                 Respond with ONLY valid JSON — no markdown, no commentary:
                 {
@@ -130,6 +141,19 @@ def analyze_reference(images: List[Path], client: OpenAI) -> dict:
                     "props": ["..."],
                     "mood": "...",
                     "gemini_prompt_fragment": "..."
+                  },
+                  "overlay": {
+                    "text_color": "#FFFFFF",
+                    "overlay_opacity": 0.35,
+                    "font_size_title": 52,
+                    "font_size_body": 36,
+                    "font_size_subtitle": 38,
+                    "text_position": "center",
+                    "slide_margin": 44
+                  },
+                  "format": {
+                    "slides_per_carousel": 6,
+                    "aspect_ratio": "9:16"
                   }
                 }
             """).strip(),
@@ -164,9 +188,12 @@ def build_system_prompt(persona: dict, analysis: Optional[dict] = None) -> str:
     p = persona
     aud = p["audience"]
     tone = p["tone"]
-    vis = p["visual_identity"]
 
-    # Text style rules: persona defaults + reference overrides if available
+    slides_per_carousel = (
+        analysis.get("format", {}).get("slides_per_carousel", 6)
+        if analysis else 6
+    )
+
     if analysis and analysis.get("text_style"):
         ts = analysis["text_style"]
         text_style_rules = textwrap.dedent(f"""
@@ -196,12 +223,6 @@ def build_system_prompt(persona: dict, analysis: Optional[dict] = None) -> str:
 
         {text_style_rules}
 
-        VISUAL IDENTITY
-        Vibe: {vis["vibe"]}
-        Aesthetic: {", ".join(vis["aesthetic_keywords"])}
-        Color palette: {", ".join(vis["color_palette"])}
-        Do NOT show: {", ".join(vis["what_not_to_show"])}
-
         OUTPUT FORMAT
         You must respond with ONLY valid JSON — no markdown, no commentary, no code fences.
         {{
@@ -222,7 +243,7 @@ def build_system_prompt(persona: dict, analysis: Optional[dict] = None) -> str:
         }}
 
         RULES
-        - Each topic has exactly {p["content"]["slides_per_carousel"] - 1} slides (title slide is separate)
+        - Each topic has exactly {slides_per_carousel - 1} slides (title slide is separate)
         - title_slide: direct contrarian hook — match the TEXT STYLE register exactly
         - subtitle: 1 short sentence framing who this is for or the key insight (15 words max)
         - slide title: concise app/concept name or short phrase, no number prefix
@@ -232,8 +253,7 @@ def build_system_prompt(persona: dict, analysis: Optional[dict] = None) -> str:
     """).strip()
 
 
-def build_user_prompt(persona: dict, count: int, seeds: List[str]) -> str:
-    slides_per = persona["content"]["slides_per_carousel"] - 1
+def build_user_prompt(persona: dict, count: int, seeds: List[str], slides_per: int = 5) -> str:
     seed_text = f"\nUse these as topic seeds: {', '.join(seeds)}" if seeds else ""
     return (
         f"Generate {count} TikTok carousel topics.{seed_text}\n"
@@ -270,12 +290,13 @@ def main():
     parser.add_argument("--persona", default="persona.yaml", help="Path to persona.yaml")
     parser.add_argument("--count", "-n", type=int, default=None, help="Number of topics")
     parser.add_argument("--output-dir", "-o", default="output", help="Output directory")
-    parser.add_argument("--reference", metavar="URL", help="TikTok carousel URL to use as style reference")
+    parser.add_argument("--reference", metavar="URL", action="append", dest="references",
+                        help="TikTok carousel URL to use as style reference (repeat for multiple)")
     parser.add_argument("seeds", nargs="*", help="Optional topic seed words")
     args = parser.parse_args()
 
     persona = load_persona(args.persona)
-    count = args.count or persona["content"]["topics_per_batch"]
+    count = args.count or 3
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -284,19 +305,26 @@ def main():
     client = OpenAI()
     analysis = None
 
-    if args.reference:
+    if args.references:
         with tempfile.TemporaryDirectory() as tmp:
-            images = download_reference_slides(args.reference, Path(tmp))
-            if images:
-                analysis = analyze_reference(images, client)
-                # Save analysis for inspection
+            tmp_path = Path(tmp)
+            all_images = []
+            for i, ref_url in enumerate(args.references):
+                slide_dir = tmp_path / f"ref_{i:02d}"
+                slide_dir.mkdir()
+                images = download_reference_slides(ref_url, slide_dir)
+                all_images.extend(images)
+            if all_images:
+                print(f"  Analyzing {len(all_images)} slides from {len(args.references)} reference post(s)...")
+                analysis = analyze_reference(all_images, client)
                 (output_dir / "reference_analysis.json").write_text(
                     json.dumps(analysis, indent=2, ensure_ascii=False)
                 )
                 print(f"  → {output_dir}/reference_analysis.json")
 
+    slides_per = (analysis.get("format", {}).get("slides_per_carousel", 6) - 1) if analysis else 5
     system = build_system_prompt(persona, analysis)
-    user = build_user_prompt(persona, count, args.seeds)
+    user = build_user_prompt(persona, count, args.seeds, slides_per=slides_per)
 
     print("  Generating content...")
     response = client.chat.completions.create(

@@ -48,3 +48,11 @@ The following components currently render hardcoded/mock data. Each should be wi
 - [ ] **[StatsPanel.tsx](src/components/StatsPanel.tsx)** — replace 5 hardcoded animated stats (8 agents, 1,247 insights, 342 trends, 78% confidence, 156 nodes) with live values.
 - [ ] **[AgentViewer.tsx](src/components/AgentViewer.tsx)** — replace 12 mock TikTok posts and 10 hardcoded insights driving the fake scan animation with real scraped posts and live insights.
 - [ ] **[LandingOverlay.tsx](src/components/LandingOverlay.tsx)** — replace 5 hardcoded status messages with real pipeline-init progress events.
+
+## GBrain Configuration (configured by /setup-gbrain)
+- Engine: pglite
+- Config file: ~/.gbrain/config.json (mode 0600)
+- Setup date: 2026-05-16
+- MCP registered: yes
+- Memory sync: off
+- Current repo policy: read-write

@@ -29,12 +29,40 @@ export default function ContentStudio({
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [activeSlide, setActiveSlide] = useState(0);
   const [count, setCount] = useState(1);
+  const [mockNiche, setMockNiche] = useState<string>("");
+  const [mockSlides, setMockSlides] = useState<string[]>([]);
 
   useEffect(() => {
+    const raw = sessionStorage.getItem("brainpost.lastGeneration");
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw) as { niche: string; contextLog: string[]; mocked: boolean };
+        const logs = parsed.contextLog ?? [];
+        setGenLogs(logs);
+        setMockNiche(parsed.niche ?? "");
+        // Extract topics from context log line like: topics: "a" · "b" · "c"
+        const topicsLine = logs.find((l) => l.startsWith("topics:"));
+        const topics = topicsLine
+          ? Array.from(topicsLine.matchAll(/"([^"]+)"/g)).map((m) => m[1])
+          : [];
+        const slides = [
+          parsed.niche,
+          ...topics,
+          "Save this for later →",
+        ].filter(Boolean).slice(0, 6);
+        setMockSlides(slides);
+        setGenState("done");
+        sessionStorage.removeItem("brainpost.lastGeneration");
+      } catch {
+        // ignore malformed
+      }
+      return;
+    }
     if (!readCachedCarousel(count)) {
       prewarmCarousel({ count, persona: persona ?? {} });
     }
-  }, [count, persona]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const generateImages = async ({ force }: { force?: boolean } = {}) => {
     if (!force) {
@@ -66,7 +94,7 @@ export default function ContentStudio({
   };
 
   return (
-    <div>
+    <div className="max-w-4xl mx-auto px-6 py-12">
       <div className="flex items-center justify-between mb-10">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Content Studio</h1>
@@ -171,6 +199,81 @@ export default function ContentStudio({
             </motion.div>
           )}
 
+          {/* Done — mock slide carousel + context log */}
+          {genState === "done" && imageUrls.length === 0 && mockSlides.length > 0 && (
+            <motion.div
+              key="done-mock"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+            >
+              {/* Slide viewer */}
+              <div className="relative flex items-center justify-center mb-4">
+                <button
+                  onClick={() => setActiveSlide((s) => Math.max(0, s - 1))}
+                  disabled={activeSlide === 0}
+                  className="absolute left-0 p-2 text-muted hover:text-foreground disabled:opacity-20 transition-colors cursor-pointer z-10"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <AnimatePresence mode="wait">
+                  <MockSlide
+                    key={activeSlide}
+                    index={activeSlide}
+                    total={mockSlides.length}
+                    text={mockSlides[activeSlide]}
+                    niche={mockNiche}
+                  />
+                </AnimatePresence>
+                <button
+                  onClick={() => setActiveSlide((s) => Math.min(mockSlides.length - 1, s + 1))}
+                  disabled={activeSlide === mockSlides.length - 1}
+                  className="absolute right-0 p-2 text-muted hover:text-foreground disabled:opacity-20 transition-colors cursor-pointer z-10"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Thumbnail strip */}
+              <div className="flex gap-2 justify-center overflow-x-auto pb-2 mb-6">
+                {mockSlides.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setActiveSlide(i)}
+                    className={`w-10 h-16 rounded-md transition-all cursor-pointer flex-shrink-0 ${
+                      i === activeSlide ? "ring-2 ring-accent opacity-100" : "opacity-30 hover:opacity-60"
+                    }`}
+                    style={{ background: `hsl(${(i * 47 + 220) % 360} 25% 12%)` }}
+                  />
+                ))}
+              </div>
+              <p className="text-center text-xs text-muted mb-8">
+                Slide {activeSlide + 1} of {mockSlides.length}
+              </p>
+
+              {/* Context log */}
+              <div className="border-t border-card-border pt-6">
+                <p className="text-[10px] font-mono uppercase tracking-widest text-muted mb-3">
+                  GBrain context
+                </p>
+                <div className="font-mono text-xs space-y-1 max-h-40 overflow-y-auto">
+                  {genLogs.map((log, i) => {
+                    const [key, ...rest] = log.split(": ");
+                    return (
+                      <div key={i} className="flex gap-2 text-muted/60">
+                        <span className="text-accent shrink-0">›</span>
+                        <span>
+                          <span className="text-muted/50">{key}:</span>{" "}
+                          {rest.join(": ")}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </motion.div>
+          )}
+
           {/* Done — image viewer */}
           {genState === "done" && imageUrls.length > 0 && (
             <motion.div
@@ -255,5 +358,74 @@ function StrategyCard({ label, value }: { label: string; value: string }) {
       <p className="text-[10px] text-muted/60 uppercase tracking-widest mb-2">{label}</p>
       <p className="text-sm text-foreground/80 leading-relaxed">{value}</p>
     </div>
+  );
+}
+
+const SLIDE_GRADIENTS = [
+  "linear-gradient(160deg, #0f0f14 0%, #1a1025 100%)",
+  "linear-gradient(160deg, #0d1117 0%, #0f1a2e 100%)",
+  "linear-gradient(160deg, #0f1408 0%, #182312 100%)",
+  "linear-gradient(160deg, #180f0f 0%, #2a1410 100%)",
+  "linear-gradient(160deg, #110e1a 0%, #1c1030 100%)",
+  "linear-gradient(160deg, #0d1318 0%, #0f2028 100%)",
+];
+
+function MockSlide({
+  index,
+  total,
+  text,
+  niche,
+}: {
+  index: number;
+  total: number;
+  text: string;
+  niche: string;
+}) {
+  const isFirst = index === 0;
+  const isLast = index === total - 1;
+  const gradient = SLIDE_GRADIENTS[index % SLIDE_GRADIENTS.length];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -20 }}
+      transition={{ duration: 0.2 }}
+      className="relative w-56 rounded-2xl overflow-hidden shadow-2xl flex-shrink-0"
+      style={{ aspectRatio: "9/16", background: gradient }}
+    >
+      {/* Noise texture overlay */}
+      <div className="absolute inset-0 opacity-[0.03]"
+        style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E\")" }}
+      />
+
+      {/* Slide counter */}
+      <div className="absolute top-4 right-4 text-[10px] font-mono text-white/40">
+        {index + 1}/{total}
+      </div>
+
+      {/* Content */}
+      <div className="absolute inset-0 flex flex-col justify-center px-5">
+        {isFirst && (
+          <p className="text-[9px] font-mono uppercase tracking-widest text-white/40 mb-3">
+            {niche}
+          </p>
+        )}
+        <p className={`font-semibold text-white leading-snug ${isFirst ? "text-lg" : isLast ? "text-base" : "text-sm"}`}>
+          {text}
+        </p>
+        {!isFirst && !isLast && (
+          <div className="mt-3 h-px w-8 bg-white/20" />
+        )}
+      </div>
+
+      {/* Bottom bar */}
+      <div className="absolute bottom-0 left-0 right-0 px-4 py-3 flex items-center gap-2"
+        style={{ background: "linear-gradient(to top, rgba(0,0,0,0.6), transparent)" }}
+      >
+        <div className="w-5 h-5 rounded-full bg-accent/80" />
+        <span className="text-[9px] text-white/50 font-mono">@brainpost</span>
+      </div>
+    </motion.div>
   );
 }

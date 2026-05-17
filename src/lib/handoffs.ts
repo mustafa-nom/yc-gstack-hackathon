@@ -17,29 +17,6 @@ export type PersonaYaml = {
     title_style: string;
     example_hooks: string[];
   };
-  visual_identity: {
-    vibe: string;
-    aesthetic_keywords: string[];
-    color_palette: string[];
-    what_not_to_show: string[];
-  };
-  content: {
-    slides_per_carousel: number;
-    topics_per_batch: number;
-  };
-  image_generation: {
-    aspect_ratio: string;
-    base_prompt: string;
-    title_prompt: string;
-    scene_variety: string[];
-  };
-  text_overlay: {
-    text_color: string;
-    font_size_title: number;
-    font_size_subtitle: number;
-    font_size_body: number;
-    slide_margin: number;
-  };
 };
 
 export type DesignBrief = {
@@ -48,85 +25,19 @@ export type DesignBrief = {
   personaPath: string;
   topics: string[];
   referenceTiktok?: string;
+  contextLog: string[];
 };
 
-function defaultVisualIdentity(): PersonaYaml["visual_identity"] {
-  return {
-    vibe: "Clean modern editorial",
-    aesthetic_keywords: ["minimal", "high-contrast", "modern", "trustworthy"],
-    color_palette: ["#09090b", "#fafafa", "#d4745f"],
-    what_not_to_show: ["clipart", "stock photo cliches", "low-contrast text"],
-  };
-}
+// ---------------------------------------------------------------------------
+// GBrain readers
+// ---------------------------------------------------------------------------
 
-function defaultImageGeneration(): PersonaYaml["image_generation"] {
-  return {
-    aspect_ratio: "9:16",
-    base_prompt:
-      "Candid iPhone photo, full bleed, no text, no overlay, no border, no watermark",
-    title_prompt: "Eye-catching minimal scene matching the niche tone",
-    scene_variety: [
-      "Tight close-up on a single relevant object in soft moody lighting",
-      "Wide environmental shot with depth, neutral tones",
-      "Top-down flat-lay arrangement with negative space",
-      "Low-angle perspective with one bold visual anchor",
-      "Hand-in-frame candid moment showing scale",
-    ],
-  };
-}
-
-function defaultTextOverlay(): PersonaYaml["text_overlay"] {
-  return {
-    text_color: "#ffffff",
-    font_size_title: 86,
-    font_size_subtitle: 38,
-    font_size_body: 56,
-    slide_margin: 44,
-  };
-}
-
-export async function buildPersonaForNiche(niche: string): Promise<PersonaYaml> {
-  const slug = nicheSlugFromName(niche);
-  const nichePage = (await getPage(`niches/${slug}`)) ?? "";
-  const user = await readUserState();
-
-  const accountName = slug;
-  const handle = `@${slug.replace(/-/g, "")}`;
-
-  const hooks = extractHooks(nichePage).slice(0, 6);
-  const voice = extractVoice(nichePage);
-  const antiPatterns = extractAntiPatterns(nichePage);
-
-  return {
-    account: { name: accountName, handle },
-    audience: {
-      description:
-        user?.icp ??
-        `People interested in ${niche}. Time-constrained, looking for actionable insights.`,
-      pain_points: ["lack of time", "information overload", "not sure what works"],
-      seeking: "specific, actionable, no fluff",
-    },
-    tone: {
-      voice: voice || "Direct, specific, no motivational filler",
-      title_style: "Direct contrarian hook",
-      example_hooks: hooks.length
-        ? hooks
-        : [
-            `Why everyone is wrong about ${niche}`,
-            `The ${niche} mistake that costs you time`,
-          ],
-    },
-    visual_identity: {
-      ...defaultVisualIdentity(),
-      what_not_to_show: [
-        ...defaultVisualIdentity().what_not_to_show,
-        ...antiPatterns.slice(0, 3),
-      ],
-    },
-    content: { slides_per_carousel: 6, topics_per_batch: 3 },
-    image_generation: defaultImageGeneration(),
-    text_overlay: defaultTextOverlay(),
-  };
+async function readReferenceAccount(): Promise<string | undefined> {
+  const page = await getPage("reference-tiktok-account");
+  if (!page) return undefined;
+  const { body } = parseFrontmatter(page);
+  const match = body.match(/https?:\/\/[^\s]+/);
+  return match?.[0];
 }
 
 function extractHooks(page: string): string[] {
@@ -152,6 +63,41 @@ function extractAntiPatterns(page: string): string[] {
     .slice(0, 5);
 }
 
+// ---------------------------------------------------------------------------
+// Persona builder — reads product + niche context from GBrain
+// ---------------------------------------------------------------------------
+
+export async function buildPersonaForNiche(niche: string): Promise<PersonaYaml> {
+  const slug = nicheSlugFromName(niche);
+  const nichePage = (await getPage(`niches/${slug}`)) ?? "";
+  const user = await readUserState();
+
+  const hooks = extractHooks(nichePage).slice(0, 6);
+  const voice = extractVoice(nichePage);
+  const accountHandle = `@${slug.replace(/-/g, "")}`;
+
+  return {
+    account: { name: slug, handle: accountHandle },
+    audience: {
+      description:
+        user?.icp ??
+        `People interested in ${niche}. Time-constrained, looking for actionable insights.`,
+      pain_points: ["lack of time", "information overload", "not sure what works"],
+      seeking: "specific, actionable, no fluff",
+    },
+    tone: {
+      voice: voice || "Direct, specific, no motivational filler",
+      title_style: "Direct contrarian hook",
+      example_hooks: hooks.length
+        ? hooks
+        : [
+            `Why everyone is wrong about ${niche}`,
+            `The ${niche} mistake that costs you time`,
+          ],
+    },
+  };
+}
+
 export async function writePersonaForNiche(niche: string): Promise<string> {
   const persona = await buildPersonaForNiche(niche);
   const slug = nicheSlugFromName(niche);
@@ -165,22 +111,48 @@ export async function writePersonaForNiche(niche: string): Promise<string> {
 export async function prepareDesignBrief(input: {
   niche: string;
 }): Promise<DesignBrief> {
-  const user = await readUserState();
   const slug = nicheSlugFromName(input.niche);
-  const personaPath = await writePersonaForNiche(input.niche);
+  const contextLog: string[] = [];
 
+  // Product context
+  const user = await readUserState();
+  if (user?.website) contextLog.push(`product: ${user.website}`);
+  if (user?.description) contextLog.push(`description: ${user.description}`);
+  if (user?.icp) contextLog.push(`icp: ${user.icp.slice(0, 120)}${user.icp.length > 120 ? "…" : ""}`);
+
+  // Niche context from GBrain
   const page = (await getPage(`niches/${slug}`)) ?? "";
-  const hooks = extractHooks(page).slice(0, 3);
-  const topics = hooks.length
-    ? hooks
+  const voice = extractVoice(page);
+  const allHooks = extractHooks(page);
+  const antiPatterns = extractAntiPatterns(page);
+
+  if (voice) contextLog.push(`voice: ${voice}`);
+  if (allHooks.length) contextLog.push(`hooks found in gbrain: ${allHooks.length}`);
+  if (antiPatterns.length) contextLog.push(`anti-patterns: ${antiPatterns.slice(0, 3).join(" · ")}`);
+
+  // Topic seeds
+  const topics = allHooks.length
+    ? allHooks.slice(0, 3)
     : [`${input.niche} essentials`, `common ${input.niche} mistakes`, `${input.niche} quick wins`];
+
+  contextLog.push(`topics: ${topics.map((t) => `"${t}"`).join(" · ")}`);
+
+  // Reference TikTok account
+  const referenceFromGbrain = await readReferenceAccount();
+  const referenceTiktok = referenceFromGbrain ?? user?.referenceTiktok;
+  if (referenceTiktok) contextLog.push(`reference account: ${referenceTiktok}`);
+  else contextLog.push("reference account: none — using generic prompts");
+
+  const personaPath = await writePersonaForNiche(input.niche);
+  contextLog.push(`persona written: ${personaPath.split("/").slice(-1)[0]}`);
 
   return {
     nicheSlug: slug,
     niche: input.niche,
     personaPath,
     topics,
-    referenceTiktok: user?.referenceTiktok,
+    referenceTiktok,
+    contextLog,
   };
 }
 

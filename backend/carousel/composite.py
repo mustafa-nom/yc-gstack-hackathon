@@ -17,7 +17,6 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-import yaml
 from dotenv import load_dotenv
 from PIL import Image, ImageDraw, ImageFont
 
@@ -112,13 +111,12 @@ def add_dark_overlay(img: Image.Image, opacity: float) -> Image.Image:
 # Slide 1 — title slide: gradient at bottom, text in lower area
 # ---------------------------------------------------------------------------
 
-def composite_title_slide(img, title, subtitle, config, out_path):
-    overlay_cfg = config["text_overlay"]
+def composite_title_slide(img, title, subtitle, overlay_cfg, out_path):
     W, H = img.size
     margin = overlay_cfg.get("slide_margin", 44)
-    text_color = hex_to_rgba(overlay_cfg["text_color"])
+    text_color = hex_to_rgba(overlay_cfg.get("text_color", "#FFFFFF"))
 
-    title_font = find_font(overlay_cfg["font_size_title"], bold=True)
+    title_font = find_font(overlay_cfg.get("font_size_title", 52), bold=True)
     sub_font = find_font(overlay_cfg.get("font_size_subtitle", 38), bold=False)
 
     img_rgba = img.convert("RGBA")
@@ -159,14 +157,13 @@ def composite_title_slide(img, title, subtitle, config, out_path):
 # Slides 2+ — content slides: no box, text at top on dark background
 # ---------------------------------------------------------------------------
 
-def composite_content_slide(img, slide_num, title, body, config, out_path):
-    overlay_cfg = config["text_overlay"]
+def composite_content_slide(img, slide_num, title, body, overlay_cfg, out_path):
     W, H = img.size
     margin = overlay_cfg.get("slide_margin", 44)
-    text_color = hex_to_rgba(overlay_cfg["text_color"])
+    text_color = hex_to_rgba(overlay_cfg.get("text_color", "#FFFFFF"))
 
-    title_font = find_font(overlay_cfg["font_size_title"], bold=True)
-    body_font = find_font(overlay_cfg["font_size_body"], bold=False)
+    title_font = find_font(overlay_cfg.get("font_size_title", 52), bold=True)
+    body_font = find_font(overlay_cfg.get("font_size_body", 36), bold=False)
 
     img_rgba = img.convert("RGBA")
     # Slight overall darkening so white text reads on any gym bg
@@ -218,23 +215,26 @@ def main():
     parser.add_argument("--data", default="output/slide_data.json")
     parser.add_argument("--bg-dir", default="output/backgrounds")
     parser.add_argument("--output-dir", "-o", default="output/final")
-    parser.add_argument("--persona", default="persona.yaml")
+    parser.add_argument("--persona", default="persona.yaml", help="Unused — kept for CLI compatibility")
     parser.add_argument("--topics", help="Comma-separated slugs (default: all)")
     args = parser.parse_args()
 
     data_path = Path(args.data)
-    persona_path = Path(args.persona)
 
     if not data_path.exists():
         print(f"Error: {data_path} not found.", file=sys.stderr)
         sys.exit(1)
-    if not persona_path.exists():
-        print(f"Error: {persona_path} not found.", file=sys.stderr)
-        sys.exit(1)
 
     data = json.loads(data_path.read_text())
-    persona = yaml.safe_load(persona_path.read_text())
     topics = data["topics"]
+
+    # Load overlay config from reference analysis; fall back to sensible defaults
+    analysis_path = data_path.parent / "reference_analysis.json"
+    overlay_cfg = {}
+    if analysis_path.exists():
+        analysis = json.loads(analysis_path.read_text())
+        overlay_cfg = analysis.get("overlay", {})
+        print(f"  Loaded overlay config from reference analysis")
 
     if args.topics:
         filter_slugs = set(args.topics.split(","))
@@ -253,7 +253,7 @@ def main():
         bg = bg_dir / slug / "slide_01.png"
         out = out_dir / slug / "slide_01.png"
         img = open_or_placeholder(bg if bg.exists() else None)
-        composite_title_slide(img, topic["title_slide"], topic.get("subtitle", ""), persona, out)
+        composite_title_slide(img, topic["title_slide"], topic.get("subtitle", ""), overlay_cfg, out)
         print(f"    slide_01 (title) {'✓' if bg.exists() else '✓ (placeholder bg)'}")
         done += 1
 
@@ -262,7 +262,7 @@ def main():
             bg = bg_dir / slug / f"slide_{i+1:02d}.png"
             out = out_dir / slug / f"slide_{i+1:02d}.png"
             img = open_or_placeholder(bg if bg.exists() else None)
-            composite_content_slide(img, i, slide["title"], slide["body"], persona, out)
+            composite_content_slide(img, i, slide["title"], slide["body"], overlay_cfg, out)
             print(f"    slide_{i+1:02d} (#{i}: {slide['title'][:30]}) {'✓' if bg.exists() else '✓ (placeholder bg)'}")
             done += 1
 
